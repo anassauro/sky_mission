@@ -1,0 +1,161 @@
+Latitude: 23.56820110 (degrees), b'S'
+Longitude: 46.73665860 (degrees), b'W'
+Distance to Center: 709.45 pixels
+Distance to Center: 8.08 m
+Path: /home/helena/yolov5/odonto_map/oficial10.jpg
+Result: Success
+---------
+Latitude: 23.56820110 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 756.27 pixels
+Distance to Center: 8.07 m
+Path: /home/helena/yolov5/odonto_map/oficial11.jpg
+Result: Success
+---------
+Latitude: 23.56820110 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 804.44 pixels
+Distance to Center: 8.05 m
+Path: /home/helena/yolov5/odonto_map/oficial12.jpg
+Result: Success
+---------
+Latitude: 23.56820110 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 1243.07 pixels
+Distance to Center: 8.05 m
+Path: /home/helena/yolov5/odonto_map/oficial13.jpg
+Result: Success
+---------
+Latitude: 23.56820110 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 630.22 pixels
+Distance to Center: 8.05 m
+Path: /home/helena/yolov5/odonto_map/oficial14.jpg
+Result: Success
+---------
+Latitude: 23.56820090 (degrees), b'S'
+Longitude: 46.73665840 (degrees), b'W'
+Distance to Center: 612.53 pixels
+Distance to Center: 8.08 m
+Path: /home/helena/yolov5/odonto_map/oficial15.jpg
+Result: Success
+---------
+Latitude: 23.56820090 (degrees), b'S'
+Longitude: 46.73665840 (degrees), b'W'
+Distance to Center: 809.53 pixels
+Distance to Center: 8.08 m
+Path: /home/helena/yolov5/odonto_map/oficial16.jpg
+Result: Success
+---------
+Latitude: 23.56820080 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 1300.52 pixels
+Distance to Center: 8.09 m
+Path: /home/helena/yolov5/odonto_map/oficial17.jpg
+Result: Success
+---------
+Latitude: 23.56820000 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 2431.13 pixels
+Distance to Center: 8.15 m
+Path: /home/helena/yolov5/odonto_map/oficial41.jpg
+Result: Success
+---------
+Latitude: 23.56820000 (degrees), b'S'
+Longitude: 46.73665820 (degrees), b'W'
+Distance to Center: 1952.32 pixels
+Distance to Center: 8.13 m
+Path: /home/helena/yolov5/odonto_map/oficial43.jpg
+Result: Success
+---------
+Latitude: 23.56820000 (degrees), b'S'
+Longitude: 46.73665820 (degrees), b'W'
+Distance to Center: 1913.86 pixels
+Distance to Center: 8.13 m
+Path: /home/helena/yolov5/odonto_map/oficial44.jpg
+Result: Success
+---------
+Latitude: 23.56819970 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 1513.77 pixels
+Distance to Center: 8.16 m
+Path: /home/helena/yolov5/odonto_map/oficial52.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 656.23 pixels
+Distance to Center: 8.17 m
+Path: /home/helena/yolov5/odonto_map/oficial53.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 960.22 pixels
+Distance to Center: 8.17 m
+Path: /home/helena/yolov5/odonto_map/oficial54.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 1174.52 pixels
+Distance to Center: 8.17 m
+Path: /home/helena/yolov5/odonto_map/oficial55.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665830 (degrees), b'W'
+Distance to Center: 1694.17 pixels
+Distance to Center: 8.17 m
+Path: /home/helena/yolov5/odonto_map/oficial56.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665840 (degrees), b'W'
+Distance to Center: 2137.66 pixels
+Distance to Center: 8.18 m
+Path: /home/helena/yolov5/odonto_map/oficial57.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 1460.48 pixels
+Distance to Center: 8.18 m
+Path: /home/helena/yolov5/odonto_map/oficial69.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 1021.73 pixels
+Distance to Center: 8.18 m
+Path: /home/helena/yolov5/odonto_map/oficial70.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665850 (degrees), b'W'
+Distance to Center: 882.37 pixels
+Distance to Center: 8.18 m
+Path: /home/helena/yolov5/odonto_map/oficial71.jpg
+Result: Success
+---------
+Latitude: 23.56819960 (degrees), b'S'
+Longitude: 46.73665860 (degrees), b'W'
+Distance to Center: 1682.66 pixels
+Distance to Center: 8.19 m
+Path: /home/helena/yolov5/odonto_map/oficial72.jpg
+Result: Success
+---------
+Latitude: 23.56819970 (degrees), b'S'
+Longitude: 46.73665870 (degrees), b'W'
+Distance to Center: 2354.81 pixels
+Distance to Center: 8.19 m
+Path: /home/helena/yolov5/odonto_map/oficial73.jpg
+Result: Success
+---------
+Latitude: 23.56819970 (degrees), b'S'
+Longitude: 46.73665910 (degrees), b'W'
+Distance to Center: 2008.62 pixels
+Distance to Center: 8.22 m
+Path: /home/helena/yolov5/odonto_map/oficial77.jpg
+Result: Success
+---------
