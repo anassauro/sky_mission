@@ -9,7 +9,6 @@ from mavros_msgs.msg import PositionTarget
 
 from std_msgs.msg import Int16
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
 from tf2_msgs.msg import TFMessage
 
 import math
@@ -22,7 +21,6 @@ class image_converter:
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
         self.pub_error = rospy.Publisher('error', Int16, queue_size=10)
         self.pub_angle = rospy.Publisher('angle', Int16, queue_size=10)
-        self.bridge = CvBridge()
         # self.image_sub = rospy.Subscriber('/webcam/image_raw', Image, self.callback)
 
         self.setpoint_pub_ = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
@@ -194,29 +192,7 @@ class image_converter:
         return cv_image
 
 
-    # Image processing @ 10 FPS
-    def callback(self, data):
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            print(e)
 
-        cv_image = self.zoom(cv_image, scale=20)
-        cv_image = cv2.add(cv_image, np.array([-50.0]))
-        # height, width, _ = cv_image.shape
-        # print(width, 'x', height)
-        # if self.takeoffed and (not self.landed):
-        cv_image_hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
-        self.line_detect(cv_image_hsv)
-            # self.land_detect(cv_image)
-
-
-        # cv2.putText(cv_image, "battery: " + str(self.battery) + "%", (570, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
-        #             (255, 255, 0), 2, cv2.LINE_AA)
-
-        # cv2.imshow("Image window", cv_image)
-        # cv2.imshow("mask", mask)
-        # cv2.waitKey(1) & 0xFF
 
     def detection_loop(self):
         while self.capture.isOpened():
