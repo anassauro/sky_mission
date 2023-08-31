@@ -57,12 +57,16 @@ class image_converter:
 
 
     def callback(self, data):
-        for transform in data.transforms:
-            if transform.child_frame_id == "camera_link":
-                self.drone_pos_.x = transform.transform.translation.x
-                self.drone_pos_.y = transform.transform.translation.y
-                self.drone_pos_.z = transform.transform.translation.z
-                break
+        try:
+            
+            self.dronePos = data.transforms.transform.translation
+            self.drone_pos_.x = self.dronePos.x
+            self.drone_pos_.y = self.dronePos.y
+            self.drone_pos_.z = self.dronePos.z
+        except:
+            pass   
+        return
+
 
     def line_detect(self, cv_image):
 
