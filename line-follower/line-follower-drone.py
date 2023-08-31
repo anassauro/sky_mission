@@ -50,8 +50,8 @@ class image_converter:
         self.stop = 0.0
         self.velocity = 0.05
         self.capture = cv2.VideoCapture(0)
-        self.frame_width = int(video.get(3))
-        self.frame_height = int(video.get(4))
+        self.frame_width = int(self.capture.get(3))
+        self.frame_height = int(self.capture.get(4))
    
         self.size = (frame_width, frame_height)
    
