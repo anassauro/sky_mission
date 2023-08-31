@@ -48,7 +48,7 @@ class image_converter:
         self.fly_time = 0.0
         self.start = 0.0
         self.stop = 0.0
-        self.velocity = 0.1
+        self.velocity = 0.05
         self.capture = cv2.VideoCapture(0)
 
         self.drone_pos_ = Point()
@@ -145,7 +145,8 @@ class image_converter:
 
                 vel_setpoint_.x = self.velocity
                 vel_setpoint_.y = error_corr
-
+                if vel_setpoint_.y > self.velocity:
+                    vel_setpoint_.y = self.velocity
                 yaw_setpoint_ = ang_corr * math.pi / 180 * 5
 
                 print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | yaw: {yaw_setpoint_}")
