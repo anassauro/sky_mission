@@ -50,6 +50,17 @@ class image_converter:
         self.stop = 0.0
         self.velocity = 0.05
         self.capture = cv2.VideoCapture(0)
+        self.frame_width = int(video.get(3))
+        self.frame_height = int(video.get(4))
+   
+        self.size = (frame_width, frame_height)
+   
+# Below VideoWriter object will create
+# a frame of above defined The output 
+# is stored in 'filename.avi' file.
+        self.result = cv2.VideoWriter('video-linha.avi', 
+                         cv2.VideoWriter_fourcc(*'MJPG'),
+                         10, size)
 
         self.drone_pos_ = Point()
 
@@ -200,6 +211,7 @@ class image_converter:
             
             ret, cv_image = self.capture.read()
             if ret:
+                self.result.write(cv_image)
                 cv_image = self.zoom(cv_image, scale=20)
                 cv_image = cv2.add(cv_image, np.array([-50.0]))
                 # height, width, _ = cv_image.shape
