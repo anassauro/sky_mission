@@ -28,6 +28,7 @@ class blockMarker():
         mask = self.findMask()
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         centers = []
+        cx, cy = 0, 0
         for i in contours:
             curve = cv.approxPolyDP(i, 0.01*cv.arcLength(i, True), True)
             if len(curve) > 8:
@@ -35,13 +36,20 @@ class blockMarker():
                 if M["m00"] != 0:
                     cX = int(M['m10']/M['m00'])
                     cY = int(M["m01"]/M["m00"])
-                    centers.append([cX, cY])
+                else:
+                    for i in curve:
+                        cX += i[0][0]
+                        cY += i[0][1]
+                    cx = int(cX/len(curve))
+                    cy = int(cY/len(curve))
+                centers.append([cX, cY])
         return centers
     
     def update(self):
         capture = cv.VideoCapture(0)
         ret, self.cv_image = capture.read()
         self.centers = self.mapCircles()
+        print(self.centers)
         return
 
 
