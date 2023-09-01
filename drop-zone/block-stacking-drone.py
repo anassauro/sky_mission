@@ -45,8 +45,8 @@ class blockMarker():
     def update(self):
         capture = cv.VideoCapture(0)
         ret, self.cv_image = capture.read()
-        self.center = self.mapCircles()
-        print(self.centers)
+        self.center = self.mapCircle()
+        print(self.center)
         return
 
 
@@ -77,9 +77,8 @@ class blockStacker():
         self.tol = 5
 
     def updateCenters(self):
-        ret, self.marker.cv_image = self.marker.capture.read()
-        self.marker.centers = self.marker.mapCircles()
-        if self.marker.centers is not None and len(self.marker.centers) == 2:
+        """
+        if self.marker.center is not None and len(self.marker.centers) == 2:
             self.TargetCenter = self.marker.centers[1]
             self.pckgCenter = self.marker.centers[0]
         elif self.marker.centers is not None and len(self.marker.centers) == 1:
@@ -88,10 +87,14 @@ class blockStacker():
         else:
             self.TargetCenter = None
             self.pckgCenter = None
-    
+        """
+        if self.marker.center is not None:
+            self.TargetCenter = self.marker.center
+        else:
+            self.TargetCenter = None
     def getError(self):
         self.updateCenters()
-        if self.TargetCenter is not None and self.dronePos.z > 1 + self.blockHeight*self.blockNum:
+        if self.TargetCenter is not None:
             errorX = self.TargetCenter[0] - self.marker.cv_image.shape[1]//2
             errorY = -self.TargetCenter[1] + self.marker.cv_image.shape[0]//2
             if abs(errorX) < self.tol and abs(errorY) < self.tol and self.step != 0:
@@ -99,19 +102,19 @@ class blockStacker():
             elif self.step != 0:
                 self.step = 1
             return [errorX, errorY]
-        elif self.TargetCenter is not None and self.dronePos.z <= 1 + self.blockHeight*self.blockNum:
-            errorX = self.TargetCenter[0] - self.pckgCenter[0]
-            errorY = -self.TargetCenter[1] + self.pckgCenter[1]
-            if abs(errorX) < self.tol and abs(errorY) < self.tol and self.step != 0:
-                self.step = 2
-            elif self.step != 0:
-                self.step = 1
-            return [errorX, errorY]
-        elif self.pckgCenter is not None:
-            errorX = 0
-            errorY = 0
-            self.step = 2
-            return [errorX, errorY]
+        #elif self.TargetCenter is not None and self.dronePos.z <= 0.5 + self.blockHeight*self.blockNum:
+        #    errorX = self.TargetCenter[0] - self.pckgCenter[0]
+        #    errorY = -self.TargetCenter[1] + self.pckgCenter[1]
+        #    if abs(errorX) < self.tol and abs(errorY) < self.tol and self.step != 0:
+        #        self.step = 2
+        #    elif self.step != 0:
+        #        self.step = 1
+        #    return [errorX, errorY]
+        #elif self.pckgCenter is not None:
+        #    errorX = 0
+        #    errorY = 0
+        #    self.step = 2
+        #    return [errorX, errorY]
         
         else:
             return None
@@ -120,8 +123,8 @@ class blockStacker():
         if error is not None:
             
             vel = TwistStamped()
-            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/1500
-            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/1500
+            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/3000
+            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/3000
             
             self.pub_vel.publish(vel)
         else:
@@ -134,7 +137,7 @@ class blockStacker():
         if self.dronePos.z > self.blockHeight*self.blockNum + 0.1:
             
             vel = TwistStamped()
-            vel.twist.linear.z = -0.1*(self.dronePos.z - self.blockHeight*self.blockNum)
+            vel.twist.linear.z = -0.05*(self.dronePos.z - self.blockHeight*self.blockNum)
             self.pub_vel.publish(vel)
             self.tol = 30/self.dronePos.z
         else:
@@ -146,9 +149,9 @@ class blockStacker():
         return
     
     def goUp(self):
-        if self.dronePos.z < 10:
+        if self.dronePos.z < 1:
             vel = TwistStamped()
-            vel.twist.linear.z = 0.5
+            vel.twist.linear.z = 0.2
             self.pub_vel.publish(vel)
         else:
             self.pub_vel.publish(TwistStamped())
@@ -171,7 +174,7 @@ class blockStacker():
         elif self.step == 0:
             print("Stop")
 
-        time.sleep(1)
+        time.sleep(0.5)
         return
     
     
@@ -179,8 +182,7 @@ class blockStacker():
         try:
             
             self.dronePos = data.transforms.transform.translation
-            print(self.marker.centers)
-            #print(self.dronePos) 
+            print(self.dronePos) 
         except:
             pass   
         return
@@ -195,13 +197,12 @@ if __name__ == '__main__':
     bm = blockMarker()
     time.sleep(1)
     
-    #bs.stackBlock()
+    
     
     while not rospy.is_shutdown():
-        #bs.stackBlock()
         try:
             bm.update()
-            #rospy.spin()
+            bs.stackBlock()
         except KeyboardInterrupt:
             print("Shutting down")
             cv.destroyAllWindows()
