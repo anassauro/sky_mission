@@ -2,22 +2,16 @@ import rospy
 import cv2 as cv
 import numpy as np
 import time
-import dronekit
+#import dronekit
 
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import TwistStamped, PoseStamped, PoseWithCovarianceStamped
-from mavros_msgs.msg import PositionTarget
-#from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import TwistStamped, PoseStamped, TransformStamped
+from mavros_msgs.msg import PositionTarget 
 from std_msgs.msg import Int16
-
+from tf2_msgs.msg import TFMessage
 
 class blockMarker():
     def __init__(self):
-        
-        self.pub_error = rospy.Publisher('error', Int16, queue_size=10)
-        self.pub_angle = rospy.Publisher('angle', Int16, queue_size=10)
-        #self.bridge = CvBridge()
-        #self.image_sub = rospy.Subscriber('/webcam/image_raw', Image, self.callback)
         self.capture = cv.VideoCapture(0)
         self.centers = None
         self.cv_image = None
@@ -42,20 +36,10 @@ class blockMarker():
             centers.append([cX, cY])
         return centers
     
-    
-    #def callback(self, data): #Converts the imagemsg to a cv2 image
-    #    try:
-    #        self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    #        width = int(self.cv_image.shape[1] * 0.5)
-    #        height = int(self.cv_image.shape[0]) 
-    #        cv.circle(self.cv_image, (width, height), width//4, (255, 0, 0), -1)
-    #        self.centers = self.mapCircles()
-    #        
-    #    except CvBridgeError as e:
-    #        print(e)
-    #    cv.imshow("Image window", self.cv_image)
-    #    cv.waitKey(1) & 0xFF
-
+    def update(self):
+        ret, self.cv_image = self.capture.read()
+        self.centers = self.mapCircles()
+        return
 
 
 class blockStacker():
@@ -70,7 +54,7 @@ class blockStacker():
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
         self.setpoint_pub = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
         
-        #rospy.Subscriber('mavros/local_position/pose', PoseStamped, self.dronePosCallback)
+        rospy.Subscriber('tf', TFMessage, self.dronePosCallback)
         
         self.dronePos = None
         self.droneOri = None
@@ -85,6 +69,8 @@ class blockStacker():
         self.tol = 5
 
     def updateCenters(self):
+        ret, self.marker.cv_image = self.marker.capture.read()
+        self.marker.centers = self.marker.mapCircles()
         if self.marker.centers is not None and len(self.marker.centers) == 2:
             self.TargetCenter = self.marker.centers[1]
             self.pckgCenter = self.marker.centers[0]
@@ -183,11 +169,10 @@ class blockStacker():
     
     def dronePosCallback(self, data):
         try:
-            ret, self.marker.cv_image = self.marker.capture.read()
-            print(self.marker.cv_image.shape)
-            self.dronePos = data.pose.position
-            self.droneOri = data.pose.orientation
-            print(self.dronePos) 
+            
+            self.dronePos = data.transforms.transform.translation
+            print(self.marker.centers)
+            #print(self.dronePos) 
         except:
             pass   
         return
@@ -199,15 +184,16 @@ if __name__ == '__main__':
     
     #vehicle = dronekit.connect("tcp:127.0.0.1:5763", baud=57600)
     bs = blockStacker()
-    time.sleep(5)
+    bm = blockMarker()
+    time.sleep(1)
     
     #bs.stackBlock()
     
     while not rospy.is_shutdown():
         #bs.stackBlock()
         try:
-            
-            rospy.spin()
+            bm.update()
+            #rospy.spin()
         except KeyboardInterrupt:
             print("Shutting down")
             cv.destroyAllWindows()
