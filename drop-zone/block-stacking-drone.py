@@ -12,16 +12,16 @@ from tf2_msgs.msg import TFMessage
 
 class blockMarker():
     def __init__(self):
-        self.capture = cv.VideoCapture(0)
         self.centers = None
         self.cv_image = None
         
     
     def findMask(self):
         hsv = cv.cvtColor(self.cv_image, cv.COLOR_BGR2HSV)
-        lower = np.array([110,50,50])
-        upper = np.array([130, 255, 255])
+        lower = np.array([90,50,50])
+        upper = np.array([105, 255, 255])
         mask = cv.inRange(hsv, lower, upper)
+        mask = cv.erode(mask, None, iterations=2)
         return mask
 
     def mapCircles(self):
@@ -30,14 +30,16 @@ class blockMarker():
         centers = []
         for i in contours:
             curve = cv.approxPolyDP(i, 0.01*cv.arcLength(i, True), True)
-            M = cv.moments(curve)
-            cX = int(M['m10']/M['m00'])
-            cY = int(M["m01"]/M["m00"])
-            centers.append([cX, cY])
+            if len(curve) > 8:
+                M = cv.moments(curve)
+                cX = int(M['m10']/M['m00'])
+                cY = int(M["m01"]/M["m00"])
+                centers.append([cX, cY])
         return centers
     
     def update(self):
-        ret, self.cv_image = self.capture.read()
+        capture = cv.VideoCapture(0)
+        ret, self.cv_image = capture.read()
         self.centers = self.mapCircles()
         return
 
