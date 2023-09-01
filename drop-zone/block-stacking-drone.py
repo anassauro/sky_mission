@@ -12,7 +12,7 @@ from tf2_msgs.msg import TFMessage
 
 class blockMarker():
     def __init__(self):
-        self.centers = None
+        self.center = None
         self.cv_image = None
         
     
@@ -24,31 +24,28 @@ class blockMarker():
         mask = cv.erode(mask, None, iterations=2)
         return mask
 
-    def mapCircles(self):
+    def mapCircle(self):
         mask = self.findMask()
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        centers = []
+        maxArea = 0
+        maxContour = None
         cx, cy = 0, 0
         for i in contours:
             curve = cv.approxPolyDP(i, 0.01*cv.arcLength(i, True), True)
-            if len(curve) > 8:
-                M = cv.moments(curve)
-                if M["m00"] != 0:
-                    cX = int(M['m10']/M['m00'])
-                    cY = int(M["m01"]/M["m00"])
-                else:
-                    for i in curve:
-                        cX += i[0][0]
-                        cY += i[0][1]
-                    cx = int(cX/len(curve))
-                    cy = int(cY/len(curve))
-                centers.append([cX, cY])
-        return centers
+            area = cv.contourArea(curve)
+            if area > maxArea:
+                maxArea = area
+                maxContour = curve
+        if maxContour is not None:
+            rect = cv.minAreaRect(maxContour)
+            (cx, cy), (w, h), angle = rect
+
+        return [cx, cy]
     
     def update(self):
         capture = cv.VideoCapture(0)
         ret, self.cv_image = capture.read()
-        self.centers = self.mapCircles()
+        self.center = self.mapCircles()
         print(self.centers)
         return
 
