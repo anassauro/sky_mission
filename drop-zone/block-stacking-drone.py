@@ -32,9 +32,10 @@ class blockMarker():
             curve = cv.approxPolyDP(i, 0.01*cv.arcLength(i, True), True)
             if len(curve) > 8:
                 M = cv.moments(curve)
-                cX = int(M['m10']/M['m00'])
-                cY = int(M["m01"]/M["m00"])
-                centers.append([cX, cY])
+                if M["m00"] != 0:
+                    cX = int(M['m10']/M['m00'])
+                    cY = int(M["m01"]/M["m00"])
+                    centers.append([cX, cY])
         return centers
     
     def update(self):
