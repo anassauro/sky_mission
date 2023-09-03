@@ -4,21 +4,22 @@ import rospy
 import cv2
 import numpy as np
 import time
-from geometry_msgs.msg import TwistStamped, Vector3, Point, PoseStamped
+
+from geometry_msgs.msg import Vector3, Point
 from mavros_msgs.msg import PositionTarget
-
-
-from std_msgs.msg import Int16
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
-import math
+# Activate imshow
+IMSHOW = True
+# Activate video recording
+RECORD = False
+TESTNUM = 1
+# Activate only centralize
+ONLY_CENTRALIZE = True
 
-FLY = False
 
-
-
-class image_converter:
+class window_detect:
 
     def __init__(self):
         self.bridge = CvBridge()
@@ -27,19 +28,26 @@ class image_converter:
         self.setpoint_pub_ = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
 
 
+        # horizontal and forward velocity
         self.velocity_hor = 0.2
         self.velocity_foward = 0.4
+
+        # Error in y and z
         self.dy = 0
         self.dz = 0
+
+        # max error
         self.maxd = 5
-        self.go = True
+
+        # min window area
         self.minWindowArea = 12000
-        self.a = 1
+        
         self.windowDetected = False
 
         self.drone_pos_ = Point()
     
     def get_bigger_square(self, squares):
+        # Recieves a list of squares and returns the bigger one
         bigger_square = None
         bigger_square_area = 0
 
@@ -57,59 +65,60 @@ class image_converter:
         lower_mask = np.array([ 0, 211, 47])
         upper_mask = np.array( [ 179, 255, 75])
 
+        # Generate mask
         mask = cv2.inRange(cv_image_hsv, lower_mask, upper_mask)
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.erode(mask, kernel, iterations=5)
         mask = cv2.dilate(mask, kernel, iterations=9)
 
-        
-
-        # Invert mask
-        # mask = cv2.bitwise_not(mask)
-
+        # Find contours
         contours_blk, _ = cv2.findContours(mask.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours_blk = list(contours_blk)
+        contours_blk = list(contours_blk) 
 
-        
-
+        # If there is a contour
         if len(contours_blk) > 0:
+            # Get the bigger one
             contour = self.get_bigger_square(contours_blk)
 
+            # If the area is bigger than the min area
             if cv2.contourArea(contour) > self.minWindowArea:
+                # Get the center of the image
                 height, width, _ = cv_image.shape
                 centerX, centerY = int(width / 2), int(height / 2)
+
+                # Get the center of the contour
                 blackbox = cv2.minAreaRect(contour)
                 (x_min, y_min), (w_min, h_min), angle = blackbox
 
-                # draw rect
-                temp_image = cv_image.copy()
-                
-                box = cv2.boxPoints(blackbox)
-                box = np.int0(box)
-                cv2.drawContours(temp_image, [box], 0, (0, 0, 255), 10)
-                cv2.circle(temp_image, (int(x_min), int(y_min)), 5, (255, 0, 0), 10)
-                cv2.circle(temp_image, (centerX, centerY), 5, (0, 255, 0), 10)
-                
-                cv2.imshow("temp_img", temp_image)
-                cv2.waitKey(1) & 0xFF
+                if IMSHOW:
+                # Draw rect
+                    temp_image = cv_image.copy()
+                    
+                    box = cv2.boxPoints(blackbox)
+                    box = np.int0(box)
+                    cv2.drawContours(temp_image, [box], 0, (0, 0, 255), 10)
+                    cv2.circle(temp_image, (int(x_min), int(y_min)), 5, (255, 0, 0), 10)
+                    cv2.circle(temp_image, (centerX, centerY), 5, (0, 255, 0), 10)
+                    
+                    cv2.imshow("temp_img", temp_image)
+                    cv2.waitKey(1) & 0xFF
 
-                # Calculo do desvio
-
+                # Error calculation
                 dy = x_min - centerX
                 dz = y_min - centerY
 
-                # Print do desvio
+                # Error print
                 print(f"dy: {dy} | dz: {dz}")
 
-                # Controle da velocidade
+                ## Velocity control
                 self.dz = 0
                 # if abs(dz) < self.maxd:
                 #     self.dz = 0
                 # else:
                 #     self.dz = 1
 
+
                 if abs(dy) < self.maxd:
-                    print("Entrou")
                     self.dy = 0
                 else:
                     if dy > 0:
@@ -117,16 +126,14 @@ class image_converter:
                     else:
                         self.dy = 1
 
+                # Still centralizing
                 if self.dz or self.dy:
                     self.windowDetected = False
+                # Centralized
                 else:
                     self.windowDetected = True
-                
-                
-                    
-
             
-                # Setando as velocidades
+                # Set velocity 
 
                 setpoint_ = PositionTarget()
                 vel_setpoint_ = Vector3()
@@ -136,6 +143,7 @@ class image_converter:
                 vel_setpoint_.z = self.velocity_hor * self.dz * (-1)
 
                 yaw_setpoint_ = 0
+                # Print velocity
                 print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
 
                 setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
@@ -151,7 +159,8 @@ class image_converter:
                 self.setpoint_pub_.publish(setpoint_)
                
             
-            # Se não estiver vendo a janela, ficar parado
+            # If any contour is bigger than the min area
+            # stay put
             else:
                 setpoint_ = PositionTarget()
                 vel_setpoint_ = Vector3()
@@ -159,11 +168,7 @@ class image_converter:
                 vel_setpoint_.x = 0
                 vel_setpoint_.y = 0
                 vel_setpoint_.z = 0
-
                 yaw_setpoint_ = 0
-                print("Cadeee a janelaaaa??")
-                # print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
-
                 setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
                 
                 setpoint_.velocity.x = vel_setpoint_.x
@@ -175,17 +180,14 @@ class image_converter:
                 # self.setpoint_pub_.publish(setpoint_)
     
     def move(self, cv_image):
+        # Move foward
         setpoint_ = PositionTarget()
         vel_setpoint_ = Vector3()
 
         vel_setpoint_.x = self.velocity_foward
         vel_setpoint_.y = 0
         vel_setpoint_.z = 0
-
         yaw_setpoint_ = 0
-
-        # print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
-
         setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
         
         setpoint_.velocity.x = vel_setpoint_.x
@@ -196,10 +198,10 @@ class image_converter:
 
         self.setpoint_pub_.publish(setpoint_)
 
-        cv2.imshow("img", cv_image)
+        if IMSHOW:
+            cv2.imshow("img", cv_image)
+            cv2.waitKey(1) & 0xFF
     
-
-    # Image processing @ 10 FPS
     def callback(self, data):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -215,14 +217,11 @@ class image_converter:
             print("Moving")
             self.move(cv_image)
 
-        
-        # cv2.imshow("mask", mask)
-        cv2.waitKey(1) & 0xFF
 
 
 def main():
-    rospy.init_node('image_converter', anonymous=True)
-    ic = image_converter()
+    rospy.init_node('window_detect', anonymous=True)
+    wd = window_detect()
     time.sleep(3)
     try:
         rospy.spin()
