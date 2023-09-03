@@ -123,8 +123,8 @@ class blockStacker():
         if error is not None:
             
             vel = TwistStamped()
-            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/3000
-            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/3000
+            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/15000
+            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/15000
             
             self.pub_vel.publish(vel)
         else:
@@ -139,7 +139,7 @@ class blockStacker():
             vel = TwistStamped()
             vel.twist.linear.z = -0.05*(self.dronePos.z - self.blockHeight*self.blockNum)
             self.pub_vel.publish(vel)
-            self.tol = 30/self.dronePos.z
+            self.tol = 50/self.dronePos.z
         else:
             print("block lowered")
             self.pub_vel.publish(TwistStamped())
