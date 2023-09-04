@@ -74,7 +74,7 @@ class blockStacker():
         self.stacking = True
         self.targetCenter = None
         self.pckgCenter = None
-        self.tol = 5
+        self.tol = 100
 
     def updateCenters(self):
         """
@@ -139,7 +139,7 @@ class blockStacker():
             vel = TwistStamped()
             vel.twist.linear.z = -0.05*(self.dronePos.z - self.blockHeight*self.blockNum)
             self.pub_vel.publish(vel)
-            self.tol = 50/self.dronePos.z
+            self.tol = 100/self.dronePos.z
         else:
             print("block lowered")
             self.pub_vel.publish(TwistStamped())
