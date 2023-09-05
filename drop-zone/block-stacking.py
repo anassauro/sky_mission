@@ -8,7 +8,7 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import TwistStamped, PoseStamped, PoseWithCovarianceStamped
 from mavros_msgs.msg import PositionTarget
 from cv_bridge import CvBridge, CvBridgeError
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, String
 
 
 class blockMarker():
@@ -159,6 +159,7 @@ class blockStacker():
         return
     
     def stackBlock(self):
+        
         if self.stacking:
             error = self.getError()
         if self.step == 1:

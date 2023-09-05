@@ -123,8 +123,8 @@ class blockStacker():
         if error is not None:
             
             vel = TwistStamped()
-            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/15000
-            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/15000
+            vel.twist.linear.x = error[0]*(self.dronePos.z - self.blockHeight*self.blockNum)/30000
+            vel.twist.linear.y = error[1]*(self.dronePos.z - self.blockHeight*self.blockNum)/30000
             
             self.pub_vel.publish(vel)
             time.sleep(0.1)
