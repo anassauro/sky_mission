@@ -1,29 +1,31 @@
 import sys
 import rospy
-import cv2 as cv
 import numpy as np
 import time
 import dronekit
 from pymavlink import mavutil
 
-from sensor_msgs.msg import Image
-from geometry_msgs.msg import TwistStamped, PoseStamped, Point
-from mavros_msgs.msg import PositionTarget
-from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
+from std_msgs.msg import String
 
 class pickUp():
-    def __init__(self, vehicle, setpoint_pub, pickupPos):
+    def __init__(self, vehicle, setpoint_pub, pickupPos, type_pub):
         # Drone
         self.vehicle = vehicle
-        self.aruco = None
+        self.arucoPose = None
+        self.arucoAngle = None
         self.setpoint_pub = setpoint_pub
+        self.type_pub = type_pub
         self.step = "GO_TO_PICKUP" # "GO_TO_PICKUP", "PRECLAND", "DISARM"
         self.pickupPos = PoseStamped()
         self.pickupPos.pose.position = pickupPos
+        rospy.Subscriber('/sky_vision/down_cam/aruco/pose', Point, self.aruco_pose_callback)
+        rospy.Subscriber('/sky_vision/down_cam/aruco/angle', Vector3, self.aruco_angle_callback)
     
     def intStateMachine(self):
+        self.type_pub.publish(String("aruco"))
         if self.step == "GO_TO_PICKUP":
-            if self.aruco is None:
+            if self.arucoPose is None:
                 self.setpoint_pub.publish(self.pickupPos)
             else:
                 if self.vehicle.mode != 'LAND':
@@ -33,7 +35,7 @@ class pickUp():
                     print('vehicle in LAND mode')
                 self.step = "PRECLAND"
         elif self.step == "PRECLAND":
-            self.precland(self.aruco)
+            self.precland()
         elif self.step == "DISARM":
             self.vehicle.armed = False
             while self.vehicle.armed:
@@ -41,32 +43,54 @@ class pickUp():
             print('vehicle disarmed')
             return "TAKEOFF"
         return "PICKUP"
-    def precland(self, aruco,time=0):
+    
+    def precland(self , time=0):
+        print(self.arucoAngle)
+        dist = float(self.arucoPose[2])/100
         msg = self.vehicle.message_factory.landing_target_encode(
             time,
             0,
             mavutil.mavlink.MAV_FRAME_BODY_NED,
-            aruco[0],
-            aruco[1],
-            aruco[2],
+            self.arucoAngle[0],
+            self.arucoAngle[1],
+            dist,
             0,
             0,
         )
         self.vehicle.send_mavlink(msg)
-        print("Mensagem enviada")
-    
+        #print("Mensagem enviada")
 
-    
+    def aruco_pose_callback(self, msg):
+        try:
+            self.arucoPose = [msg.x, msg.y, msg.z]
+            print(self.arucoPose)
+        except:
+            self.arucoPose = None
+    def aruco_angle_callback(self, msg):
+        try:
+            self.arucoAngle = [msg.x, msg.y, msg.z]
+            print(self.arucoAngle)
+        except:
+            self.arucoAngle = None
+
+class transitZone():
+    def __init__(self, setpoint_pub , type_pub):
+        self.setpoint_pub = setpoint_pub
+        self.type_pub = type_pub
+        rospy.Subscriber('/sky_vision/down_cam/line/pose', Point, self.line_callback)
+        self.step = "GO_TO_START"# "GO_TO_START", "FOLLOW_LINE", "WINDOW",  
 
 
 class dropZone():
-    def __init__(self, pub_vel):
+    def __init__(self, pub_vel, type_pub):
         self.pub_vel = pub_vel
+        self.type_pub = type_pub
         self.blockNum = 0
         self.blockHeight = 0.5
         self.step = 1
         self.targetCenter = None
         self.tol = 5
+        rospy.Subscriber('/sky_vision/down_cam/block/pose', Point, self.center_callback)
     
     def getError(self, center, imShape):
         if center is not None:
@@ -124,9 +148,10 @@ class dropZone():
             self.pub_vel.publish(TwistStamped())
             self.step = 0
             return False
-        return
+        
     #Internal State Machine
     def stackBlock(self, dronePos, center, imShape):
+        self.type_pub.publish(String("block"))
         if self.blockNum > 0:
             error = self.getError(center, imShape)
             if self.step == 1:
@@ -160,29 +185,41 @@ class dropZone():
 
         
         return "DROP"
-
+    
+    def center_callback(self, msg):
+        try:
+            self.targetCenter = [msg.x, msg.y]
+        except:
+            self.targetCenter = None
+        return
     
 class drone(): # Unifies all drone movement elements, including main state machine
     def __init__(self):
+        #Dronekit vehicle init
         self.vehicle = dronekit.connect("tcp:127.0.0.1:5763", baud=57600)
+        #Mavros Publishers 
         self.pub_vel = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=1)
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
         self.setpoint_pub = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
-        self.drop = dropZone(self.pub_vel)
+        
+        self.type_pub = rospy.Publisher('/sky_vision/down_cam/type', String, queue_size=1) # Sends detection type to vision node
+        
+        self.drop = dropZone(self.pub_vel, self.type_pub)
         pickupPoint = Point()
-        pickupPoint.x = 1
-        pickupPoint.y = 1
-        pickupPoint.z = 1.5
-        self.pickup = pickUp(self.vehicle, self.setpoint_pub, pickupPoint)
+        pickupPoint.x = 0
+        pickupPoint.y = -0.5
+        pickupPoint.z = 5
+        self.pickup = pickUp(self.vehicle, self.setpoint_pub, pickupPoint, self.type_pub)
+
         rospy.Subscriber('mavros/local_position/pose', PoseStamped, self.dronePosCallback)
         self.dronePos = None
         self.droneOri = None
-        self.targetZ = 1.5
+        self.targetZ = 5
         self.curStep = "TAKEOFF" # TAKEOFF, PICKUP, TRANSIT, DROP
         self.hasBlock = False
     def stateMachine(self):
         if self.curStep == "TAKEOFF":
-            if self.vehicle.armed:
+            if self.vehicle.armed == True:
                 self.vehicle.simple_takeoff(self.targetZ)
                 time.sleep(0.5)
                 if self.dronePos.z >= self.targetZ*0.50:
@@ -194,8 +231,6 @@ class drone(): # Unifies all drone movement elements, including main state machi
         elif self.curStep == "PICKUP":
             self.curStep = self.pickup.intStateMachine()
         #print(self.curStep)
-
-
             
     def dronePosCallback(self, data):
         try:
@@ -217,5 +252,4 @@ if __name__ == '__main__':
             
         except KeyboardInterrupt:
             print("Shutting down")
-            cv.destroyAllWindows()
             break
