@@ -135,17 +135,17 @@ class PrecLand:
         rospy.init_node('drone_node', anonymous=False)
 
         # Bridge ros-opencv
-        self.bridge_object = CvBridge()
+        #self.bridge_object = CvBridge()
 
         # Post detection image publisher
-        self.newimg_pub = rospy.Publisher('camera/colour/image_new', Image, queue_size=10)
-        self.cam = Image()
+        #self.newimg_pub = rospy.Publisher('camera/colour/image_new', Image, queue_size=10)
+        #self.cam = Image()
 
-        try:
-            print("Criando subscriber...")
-            self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver)
-        except:
-            print('Erro ao criar subscriber!')
+        #try:
+        #    print("Criando subscriber...")
+        #    self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver)
+        #except:
+        #    print('Erro ao criar subscriber!')
 
         self.teste = []
 
@@ -167,8 +167,8 @@ class PrecLand:
     def msg_receiver(self, message):
 
         # Bridge de ROS para CV
-        cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
-        frame = cam
+        cam = cv2.VideoCapture(0)
+        frame = cam.read()
 
         # Look for the closest target in the frame
         closest_target = self.detector.aruco_detection(frame)
