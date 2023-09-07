@@ -1,5 +1,4 @@
 from __future__ import print_function
-import rospy
 import cv2
 import time
 import numpy as np
@@ -11,36 +10,146 @@ import argparse
 import torch
 import matplotlib.pyplot as plt
 from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelative
+from sensor_msgs.msg import Image
 from pymavlink import mavutil # Needed for command message definitions
 import time
+import ultralytics
 import math
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--connect', default = '127.0.0.1:14550')
-args = parser.parse_args()
 
-#-- Connect to the vehicle
-print('Connecting...')
-vehicle = connect(args.connect)
+class Vehicle:
 
-class peopleDetector:
+    def __init__(self, cap):
+        
+        self.cap = cap
+        self.state = "Initial"
+        self.current_wp = 0
+        self.current_lat = 0
+        self.current_lon = 0
+        self.current_alt = 0
+        self.vehicle_mode = ''
+        self.started = False
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
+        args = parser.parse_args()
+
+        #-- Connect to the vehicle
+        print('Connecting...')
+        self.vehicle = connect(args.connect)
+        self.mission = PeopleDetection(self.vehicle)
+
+
+        #-- Check vehicle status
+        print(f"Mode: {self.vehicle.mode.name}")
+        print(" Global Location: %s" % self.vehicle.location.global_frame)
+        print(" Global Location (relative altitude): %s" % self.vehicle.location.global_relative_frame)
+        print(" Local Location: %s" % self.vehicle.location.local_frame)
+        print(" Attitude: %s" % self.vehicle.attitude)
+        print(" Velocity: %s" % self.vehicle.velocity)
+        print(" Gimbal status: %s" % self.vehicle.gimbal)
+        print(" EKF OK?: %s" % self.vehicle.ekf_ok)
+        print(" Last Heartbeat: %s" % self.vehicle.last_heartbeat)
+        print(" Rangefinder: %s" % self.vehicle.rangefinder)
+        print(" Rangefinder distance: %s" % self.vehicle.rangefinder.distance)
+        print(" Rangefinder voltage: %s" % self.vehicle.rangefinder.voltage)
+        print(" Is Armable?: %s" % self.vehicle.is_armable)
+        print(" System status: %s" % self.vehicle.system_status.state)
+        print(" Armed: %s" % self.vehicle.armed)    # settable
+
+        @self.vehicle.on_message('GLOBAL_POSITION_INT')
+        def listener(_, name, message):
+            self.current_lat = message.lat
+            self.current_lon = message.lon
+            self.current_alt = message.relative_alt / 1000.0
+        
+        @self.vehicle.on_message('MISSION_CURRENT')
+        def waypoint_listener(_, name, message):
+            print("Reached waypoint %d" % message.seq)
+            self.current_wp = message.seq
+        
+    def run(self):
+        # Check current state and execute corresponding logic
+            while True:
+                print("Run")
+                if self.state == "Initial":
+                    print("Go to Initial")
+                    self.initial_state_logic()
+                elif self.state == "PrecisionLanding":
+                    self.precision_landing_state_logic(self.cap)
+                elif self.state == "Landed":
+                    self.landed_state_logic()
+            # Add more states and transitions as needed
+    
+    def initial_state_logic(self):
+        # Logic for the Initial state
+        print(self.vehicle.commands.next)
+        if(self.vehicle.commands.next < 4 and self.vehicle.commands.next > 1):
+                self.mission.detection(self.cap)
+                self.mission.send_text("teste de cria")
+        if self.vehicle.commands.next>=4:
+            print("Initial")
+            self.state = "PrecisionLanding"
+
+
+    def precision_landing_state_logic(self,cap):
+        # Logic for the Precision Landing state
+        if self.vehicle.mode != 'LAND':
+            self.vehicle.mode = VehicleMode('LAND')
+            while self.vehicle.mode != 'LAND':
+                time.sleep(1)
+            print('vehicle in LAND mode')
+
+        precision_landing = PrecLand(self.vehicle, 'aruco', marker_size, camera, cap)
+        
+        # while self.vehicle.location.global_frame.alt >= 0.2:
+        #     ret, frame = self.mission.video().read()
+
+        #     if not ret:
+        #         continue
+        #     precision_landing.msg_receiver(frame)
+
+        if self.current_alt<=0.2:
+            self.state = "Landed"
+    
+    def landed_state_logic(self):
+        print("End of mission")
+        self.vehicle.close()
+
+class PeopleDetection:
 
     def __init__(self, vehicle):
-        
         self.vehicle = vehicle
-        self.cap = cv2.VideoCapture(0)
 
-    
-    def detection(self,frame):
+    def detection(self,cap):
 
-        model = torch.hub.load('ultralytics/yolov5', 'custom', path='path_to_weights.pt')
-        img = frame  # or file, Path, PIL, OpenCV, numpy, list
+        model = torch.hub.load('ultralytics/yolov5', 'custom', path='/home/software/Downloads/best.pt')
+        img = cap.read()  # or file, Path, PIL, OpenCV, numpy, list
+        img = '/home/software/Downloads/LariSegurandoPhantom.JPG'
         results = model(img)
+        print(results)
         fig, ax = plt.subplots(figsize=(16, 12))
         ax.imshow(results.render()[0])
         plt.show()
 
+    def run(self):
+            # Check current state and execute corresponding logic
+            while True:
+                print("Run")
+                if self.state == "Initial":
+                    print("Go to Initial")
+                    self.initial_state_logic()
+                elif self.state == "PrecisionLanding":
+                    self.precision_landing_state_logic()
+                elif self.state == "Landed":
+                    self.landed_state_logic()
+            # Add more states and transitions as needed
     
+    def send_text(self, text):
+        
+            text = f"vem aruquinho"
+            message = self.vehicle.message_factory.statustext_encode(mavutil.mavlink.MAV_SEVERITY_INFO, text.encode("utf-8"))            
+            self.vehicle.send_mavlink(message)
+            
     def goto_position_target_global_int(self, aLocation):
         """
         Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a specified LocationGlobal.
@@ -50,7 +159,7 @@ class peopleDetector:
         See the above link for information on the type_mask (0=enable, 1=ignore). 
         At time of writing, acceleration and yaw bits are ignored.
         """
-        msg = vehicle.message_factory.set_position_target_global_int_encode(
+        msg = self.vehicle.message_factory.set_position_target_global_int_encode(
             0,       # time_boot_ms (not used)
             0, 0,    # target system, target component
             mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # frame
@@ -64,110 +173,207 @@ class peopleDetector:
             0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
             0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
         # send command to vehicle
-        vehicle.send_mavlink(msg)
+        self.vehicle.send_mavlink(msg)
     
-    def get_location_metres(self, original_location, dNorth, dEast):
-        """
-        Returns a LocationGlobal object containing the latitude/longitude `dNorth` and `dEast` metres from the 
-        specified `original_location`. The returned LocationGlobal has the same `alt` value
-        as `original_location`.
+class MarkerDetector:
 
-        The function is useful when you want to move the vehicle around specifying locations relative to 
-        the current vehicle position.
+    def __init__(self, target_type, target_size, camera_info):
 
-        The algorithm is relatively accurate over small distances (10m within 1km) except close to the poles.
+        self.target_type = target_type
+        self.marker_size = target_size
 
-        For more information see:
-        http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
-        """
-        earth_radius = 6378137.0 #Radius of "spherical" earth
-        #Coordinate offsets in radians
-        dLat = dNorth/earth_radius
-        dLon = dEast/(earth_radius*math.cos(math.pi*original_location.lat/180))
+        if self.target_type == 'aruco':
+            self.dictionary = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_1000)
+            self.parameters =  aruco.DetectorParameters()
+            self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
 
-        #New position in decimal degrees
-        newlat = original_location.lat + (dLat * 180/math.pi)
-        newlon = original_location.lon + (dLon * 180/math.pi)
-        if type(original_location) is LocationGlobal:
-            targetlocation=LocationGlobal(newlat, newlon,original_location.alt)
-        elif type(original_location) is LocationGlobalRelative:
-            targetlocation=LocationGlobalRelative(newlat, newlon,original_location.alt)
-        else:
-            raise Exception("Invalid Location object passed")
+        elif self.target_type == 'qrcode':
+            print("QR Code not implemented yet!")
+
+        self.camera_matrix = camera_info[0]
+        self.dist_coeff = camera_info[1]
+        
+        self.np_camera_matrix = np.array(self.camera_matrix)
+        self.np_dist_coeff = np.array(self.dist_coeff)
+
+        self.horizontal_res = camera_info[2][0]
+        self.vertical_res = camera_info[2][1]
+
+        self.horizontal_fov = camera_info[3][0]
+        self.vertical_fov = camera_info[3][1]
+    
+    def pose_estimation(self, corners, marker_size, mtx, distortion):
+        '''
+        This will estimate the rvec and tvec for each of the marker corners detected by:
+        corners, ids, rejectedImgPoints = detector.detectMarkers(image)
+        corners - is an array of detected corners for each detected marker in the image
+        marker_size - is the size of the detected markers
+        mtx - is the camera matrix
+        distortion - is the camera distortion matrix
+        RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
+        '''
+        marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+                                [marker_size / 2, marker_size / 2, 0],
+                                [marker_size / 2, -marker_size / 2, 0],
+                                [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
+    
+        nada, rvec, tvec = cv2.solvePnP(marker_points, corners, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
+        return rvec, tvec
+    
+    def aruco_detection(self, frame):
+
+        # Marker detection
+        markerCorners, markerIds, rejected = self.detector.detectMarkers(frame)
+
+        i = 0
+        if len(markerCorners) > 0: # if detect any Arucos
+
+            closest_target = []
+            closest_dist = 100000 # 1000 m (arbitrary large value)
+
+            for corners in markerCorners: # For each Aruco
+
+                marker_points = corners[0] # Vector with 4 points (x, y) for the corners
+
+                # Draw points in image
+                # final_image = self.draw_marker(frame, marker_points)
+                final_image = frame
+
+                # Pose estimation
+                pose = self.pose_estimation(marker_points, self.marker_size, self.np_camera_matrix, self.np_dist_coeff)
+
+                rvec, tvec = pose
+
+                # 3D pose estimation vector
+                x = round(tvec[0][0], 2)
+                y = round(tvec[1][0], 2)
+                z = round(tvec[2][0], 2)
+
+                x_sum = marker_points[0][0] + marker_points[1][0] + marker_points[2][0] + marker_points[3][0]
+                y_sum = marker_points[0][1] + marker_points[1][1] + marker_points[2][1] + marker_points[3][1]
+
+                x_avg = x_sum / 4
+                y_avg = y_sum / 4
+
+                x_ang = (x_avg - self.horizontal_res*0.5)*self.horizontal_fov/self.horizontal_res
+                y_ang = (y_avg - self.vertical_res*0.5)*self.vertical_fov/self.vertical_res
+
+                payload = markerIds[i][0]
+                i += 1
+                
+                # Check for the closest target
+                if z < closest_dist:
+                    closest_dist = z
+                    closest_target = [x, y, z, x_ang, y_ang, payload, final_image]
             
-        return targetlocation
-
-    def get_distance_metres(aLocation1, aLocation2):
-
-        """
-        Returns the ground distance in metres between two LocationGlobal objects.
-
-        This method is an approximation, and will not be accurate over large distances and close to the 
-        earth's poles. It comes from the ArduPilot test code: 
-        https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
-        """
-        dlat = aLocation2.lat - aLocation1.lat
-        dlong = aLocation2.lon - aLocation1.lon
-        return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
+            return closest_target
+        return None
     
-    def goto(self,dNorth, dEast,gotoFunction=vehicle.simple_goto):
-        """
-        Moves the vehicle to a position dNorth metres North and dEast metres East of the current position.
+    def draw_marker(self, frame, points):
+        topLeft, topRight, bottomRight, bottomLeft = points
 
-        The method takes a function pointer argument with a single `dronekit.lib.LocationGlobal` parameter for 
-        the target position. This allows it to be called with different position-setting commands. 
-        By default it uses the standard method: dronekit.lib.Vehicle.simple_goto().
+        # Marker corners
+        tR = (int(topRight[0]), int(topRight[1]))
+        bR = (int(bottomRight[0]), int(bottomRight[1]))
+        bL = (int(bottomLeft[0]), int(bottomLeft[1]))
+        tL = (int(topLeft[0]), int(topLeft[1]))
 
-        The method reports the distance to target every two seconds.
-        """
+        # Find the Marker center
+        cX = int((tR[0] + bL[0]) / 2.0)
+        cY = int((tR[1] + bL[1]) / 2.0)
+
+        # Draw rectangle and circle
+        rect = cv2.rectangle(frame, tL, bR, (0, 0, 255), 2)
+        final = cv2.circle(rect, (cX, cY), radius=4, color=(0, 0, 255), thickness=-1)
+
+        return final
+
+
+class PrecLand:
+
+    def __init__(self, vehicle, target_type, target_size, camera_info,cap):
+
+        self.cap = cap
+        # Drone
+        self.vehicle = vehicle
         
-        currentLocation = vehicle.location.global_relative_frame
-        targetLocation = self.get_location_metres(currentLocation, dNorth, dEast)
-        targetDistance = self.get_distance_metres(currentLocation, targetLocation)
-        gotoFunction(targetLocation)
-        
-        #print "DEBUG: targetLocation: %s" % targetLocation
-        #print "DEBUG: targetLocation: %s" % targetDistance
+        # Marker detector object
+        self.detector = MarkerDetector(target_type, target_size, camera_info)
 
-        while vehicle.mode.name=="GUIDED": #Stop action if we are no longer in guided mode.
-            #print "DEBUG: mode: %s" % vehicle.mode.name
-            remainingDistance=self.get_distance_metres(vehicle.location.global_relative_frame, targetLocation)
-            print("Distance to target: ", remainingDistance)
-            if remainingDistance<=targetDistance*0.01: #Just below target, in case of undershoot.
-                print("Reached target")
-                break
-            time.sleep(2)
+        self.teste = []
     
-    
-    
+    def msg_receiver(self, message):
 
+         # Bridge de ROS para CV
+        #cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
+        frame = self.cap.read()
 
-    
+        # Look for the closest target in the frame
+        closest_target = self.detector.aruco_detection(frame)
+
+        if closest_target is not None:
+
+            if self.vehicle.mode != 'LAND':
+                self.vehicle.mode = VehicleMode('LAND')
+                while self.vehicle.mode != 'LAND':
+                    print(self.vehicle.mode)
+                    time.sleep(1)
+                print('vehicle in LAND mode')
+            
+            x, y, z, x_ang, y_ang, payload, draw_img = closest_target
+
+            # times = time.time()*1e6
+            dist = float(z)/100
+
+            # AQUI
+            self.send_land_message(x_ang, y_ang, dist)
+
+            print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
+
+    def send_land_message(self, x_ang,y_ang,dist_m,time=0):
+        msg = self.vehicle.message_factory.landing_target_encode(
+            time,
+            0,
+            mavutil.mavlink.MAV_FRAME_BODY_NED,
+            x_ang,
+            y_ang,
+            dist_m,
+            0,
+            0,
+        )
+        self.vehicle.send_mavlink(msg)
+        print("Mensagem enviada")
+
 if __name__ == '__main__':
 
-    #-- Check vehicle status
-    print(f"Mode: {vehicle.mode.name}")
-    print(" Global Location: %s" % vehicle.location.global_frame)
-    print(" Global Location (relative altitude): %s" % vehicle.location.global_relative_frame)
-    print(" Local Location: %s" % vehicle.location.local_frame)
-    print(" Attitude: %s" % vehicle.attitude)
-    print(" Velocity: %s" % vehicle.velocity)
-    print(" Gimbal status: %s" % vehicle.gimbal)
-    print(" EKF OK?: %s" % vehicle.ekf_ok)
-    print(" Last Heartbeat: %s" % vehicle.last_heartbeat)
-    print(" Rangefinder: %s" % vehicle.rangefinder)
-    print(" Rangefinder distance: %s" % vehicle.rangefinder.distance)
-    print(" Rangefinder voltage: %s" % vehicle.rangefinder.voltage)
-    print(" Is Armable?: %s" % vehicle.is_armable)
-    print(" System status: %s" % vehicle.system_status.state)
-    print(" Armed: %s" % vehicle.armed)    # settable
+    cap = cv2.VideoCapture(0)
+    marker_size = 25
 
-    while not vehicle.armed:
-        print (" Waiting for arming...")
-        print ("Taking off!")
+    # Camera infos
+    
+    # camera_matrix = [[536.60468864,   0.0,         336.71838244],
+    #                [  0.0,        478.13866264, 353.24213721],
+    #                [  0.0,         0.0,        1.0        ]]
 
-    aTargetAltitude = 5
-    vehicle.simple_takeoff(aTargetAltitude) # Take off to target altitude
-    time.sleep(1)
 
-    detection = peopleDetector(vehicle)
+    # dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
+    # res = (640,480) # Camera resolution in pixels
+    # fov = (1.15976, 0.907) # Camera FOV
+
+    # camera = [camera_matrix, dist_coeff, res, fov]
+
+        # Target size in cm
+    marker_size = 50
+
+    # Camera infos
+    camera_matrix = [[467.74270306499267, 0.0, 320.5],
+                    [0.0, 467.74270306499267, 240.5],
+                    [0.0, 0.0, 1.0]]
+
+    dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
+    res = (640, 480) # Camera resolution in pixels
+    fov = (1.2, 1.1) # Camera FOV
+        
+    camera = [camera_matrix, dist_coeff, res, fov]
+    vehicle = Vehicle(cap)
+    vehicle.run()   
