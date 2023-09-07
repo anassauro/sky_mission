@@ -13,7 +13,7 @@ from mavros_msgs.msg import PositionTarget
 PICKUP_POINT = [0, 1, 2]
 
 # (x, y, z) transit estimate location
-TRANSIT_POINT = [0, -3, 2]
+TRANSIT_POINT = [2, -5, 2]
 
 # (x, y, z) pickup estimate location
 DROP_POINT = [8, 0, 2]
@@ -199,7 +199,7 @@ class transitZone():
                     self.step = "FOLLOW_LINE"
 
         elif self.step == "FOLLOW_LINE":
-            if self.line_error and self.line_angle is not None:
+            if self.line_error is not None and self.line_angle is not None:
                 self.follow_line()
 
         return "TRANSIT"
@@ -221,6 +221,9 @@ class transitZone():
 
         vel_setpoint_.x = self.forward_velocity
         vel_setpoint_.y = error_corr
+
+        if abs(vel_setpoint_.y) > vel_setpoint_.x/2:
+            vel_setpoint_.y = vel_setpoint_.x/2 * (vel_setpoint_.y / abs(vel_setpoint_.y))
 
         yaw_setpoint_ = ang_corr * math.pi / 180 * 5
 
