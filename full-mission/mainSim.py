@@ -5,7 +5,7 @@ import dronekit
 from pymavlink import mavutil
 
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
-from std_msgs.msg import String
+from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
 
 
@@ -21,9 +21,47 @@ DROP_POINT = [8, 0, 2]
 # Number os arucos detected to avoid false positives
 PICKUP_ROBUST_PRECLAND = 5
 
-# Number os lines detected to avoid false positives
-TRANSIT_ROBUST_LINEFOLLOWER = 200
+# Activate line only yaw
+ONLY_YAW = False
 
+# Activate only centralize
+ONLY_CENTRALIZE = 1
+
+# Number os lines detected to avoid false positives
+TRANSIT_ROBUST_LINEFOLLOWER = 10
+
+def quaternions_to_euler_angle(w, x, y, z):
+    ysqr = y * y
+
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + ysqr)
+    X = math.degrees(math.atan2(t0, t1))
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    Y = math.degrees(math.asin(t2))
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (ysqr + z * z)
+    Z = math.degrees(math.atan2(t3, t4))
+
+    return [X, Y, Z]
+
+def euler_angle_to_quaternions(roll, pitch, yaw):
+    cy = math.cos(math.radians(yaw) * 0.5)
+    sy = math.sin(math.radians(yaw) * 0.5)
+    cr = math.cos(math.radians(roll) * 0.5)
+    sr = math.sin(math.radians(roll) * 0.5)
+    cp = math.cos(math.radians(pitch) * 0.5)
+    sp = math.sin(math.radians(pitch) * 0.5)
+
+    w = cy * cr * cp + sy * sr * sp
+    x = cy * sr * cp - sy * cr * sp
+    y = cy * cr * sp + sy * sr * cp
+    z = sy * cr * cp - cy * sr * sp
+
+    return [w, x, y, z]
 
 class pickUp():
     def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos):
@@ -129,17 +167,19 @@ class pickUp():
 
 
 class transitZone():
-    def __init__(self, setpoint_pub, setpoint_pub_raw, type_pub, transitPos):
+    def __init__(self, setpoint_pub, setpoint_pub_raw, type_pub, type_pub_front,  transitPos):
 
         # Drone
         self.setpoint_pub = setpoint_pub
         self.setpoint_pub_raw = setpoint_pub_raw
         self.type_pub = type_pub
+        self.type_pub_front = type_pub_front
         self.step = "GO_TO_START"
         
         # Line
         self.line_error = None
         self.line_angle = None
+        self.line_detected = 0
 
         try:
             print("\nCreating sky_vision line detector subscriber...")
@@ -154,9 +194,10 @@ class transitZone():
 
         self.line_count = 0
 
-        self.step = "GO_TO_START"# "GO_TO_START", "FOLLOW_LINE", "WINDOW"
+        self.step = "WINDOW"# "GO_TO_START", "FOLLOW_LINE", "WINDOW"
 
         # Pickup position
+        #self.transitPos = PositionTarget()
         self.transitPos = PoseStamped()
         self.transitPos.pose.position = transitPos
 
@@ -168,7 +209,7 @@ class transitZone():
         self.derivative = 0
         self.last_error = 0
         self.Kp_ang = 0.01             # Ku=0.04 T=2. PID: p=0.024,i=0.024,d=0.006. PD: p=0.032, d=0.008. P: p=0.02/0.01
-        self.Ki_ang = 0
+        self.Ki_ang = 0.015
         self.kd_ang = 0
         self.integral_ang = 0
         self.derivative_ang = 0
@@ -182,6 +223,8 @@ class transitZone():
         self.window_y_vel = 0.1
         self.window_z_vel = 0.1
         self.window_move_vel = 0.1
+        self.window_dy = None
+        self.window_dz = None
 
 
 
@@ -189,14 +232,18 @@ class transitZone():
         try:
             self.line_error = msg.x
             self.line_angle = msg.y
+            self.line_detected = msg.z
         except:
             self.line_error = None
             self.line_angle = None
+            self.line_detected = None
 
     def window_pose_callback(self, msg):
+        print(msg)
         try:
             self.window_dy = msg.y
-            self.window_dz = msg.Z
+            self.window_dz = msg.z
+            print("Callback: " ,self.window_dy)
         except:
             self.window_dy = None
             self.window_dz = None
@@ -205,11 +252,13 @@ class transitZone():
 
         # Init Pickup phase (looking for arucos)
         self.type_pub.publish(String("line"))
+        self.type_pub_front.publish(String("window"))
 
         if self.step == "GO_TO_START":
             # print error
             print("line error: ", self.line_error, "line angle: ", self.line_angle)
-            if self.line_error is None and self.line_angle is None:
+            if self.line_detected == 0:
+                #self.setpoint_pub_raw.publish(self.transitPos)
                 self.setpoint_pub.publish(self.transitPos)
                 self.line_count = 0
             else:
@@ -228,6 +277,7 @@ class transitZone():
                 self.follow_line()
         
         elif self.step == "WINDOW":
+            print("Detecting window")
             self.window_detetion()
 
         return "TRANSIT"
@@ -255,9 +305,12 @@ class transitZone():
 
         yaw_setpoint_ = ang_corr * math.pi / 180 * 5
 
-        print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | yaw: {yaw_setpoint_}")
 
         setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
+
+        if self.line_detected == 0 or ONLY_YAW:
+            vel_setpoint_.x = 0
+            vel_setpoint_.y = 0
         
         setpoint_.velocity.x = vel_setpoint_.x
         setpoint_.velocity.y = vel_setpoint_.y
@@ -265,47 +318,52 @@ class transitZone():
 
         setpoint_.yaw = yaw_setpoint_
 
+
+
+        print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | yaw: {yaw_setpoint_}")
         self.setpoint_pub_raw.publish(setpoint_)
 
     
     def window_detetion(self):
         # Centralizing in the window
+        print(f"MAIN: dy: {self.window_dy}")
         if not self.windowDetected:
-            if abs(self.window_dy) < self.maxd:
-                self.window_y_vel = 0
-                self.windowDetected = True
-            else:
-                if self.window_dy > 0:
-                    self.window_y_vel = -0.1
+            if self.window_dy:
+                if abs(self.window_dy) < self.window_maxd:
+                    self.window_y_vel = 0
+                    self.windowDetected = True
                 else:
-                    self.window_y_vel = 0.1
+                    if self.window_dy > 0:
+                        self.window_y_vel = -0.1
+                    else:
+                        self.window_y_vel = 0.1
 
-            # Set velocity 
-            setpoint_ = PositionTarget()
-            vel_setpoint_ = Vector3()
+                # Set velocity 
+                setpoint_ = PositionTarget()
+                vel_setpoint_ = Vector3()
 
-            vel_setpoint_.x = 0
-            vel_setpoint_.y = self.window_y_vel
-            vel_setpoint_.z = 0
+                vel_setpoint_.x = 0
+                vel_setpoint_.y = self.window_y_vel
+                vel_setpoint_.z = 0
 
-            yaw_setpoint_ = 0
-            # Print velocity
-            print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
+                yaw_setpoint_ = 0
+                # Print velocity
+                print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
 
-            setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
-            
-            
-            setpoint_.velocity.x = vel_setpoint_.x
-            setpoint_.velocity.y = vel_setpoint_.y
-            setpoint_.velocity.z = vel_setpoint_.z
+                setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
+                
+                
+                setpoint_.velocity.x = vel_setpoint_.x
+                setpoint_.velocity.y = vel_setpoint_.y
+                setpoint_.velocity.z = vel_setpoint_.z
 
-            setpoint_.yaw = yaw_setpoint_
+                setpoint_.yaw = yaw_setpoint_
 
-            
-            self.setpoint_pub_raw.publish(setpoint_)
+                
+                self.setpoint_pub_raw.publish(setpoint_)
 
         # Passing through the window
-        else:
+        elif not ONLY_CENTRALIZE:
             #  Move foward
             setpoint_ = PositionTarget()
             vel_setpoint_ = Vector3()
@@ -326,118 +384,218 @@ class transitZone():
 
 
 
+# class dropZone():
+#     def __init__(self, pub_vel, type_pub):
+#         self.pub_vel = pub_vel
+#         self.type_pub = type_pub
+#         self.blockNum = 0
+#         self.blockHeight = 0.5
+#         self.step = 1
+#         self.targetCenter = None
+#         self.tol = 5
+#         rospy.Subscriber('/sky_vision/down_cam/block/pose', Point, self.center_callback)
+    
+#     def getError(self, center, imShape):
+#         if center is not None:
+#             errorX = center[0] - imShape[1]//2
+#             errorY = -center[1] + imShape[0]//2
+#             if abs(errorX) < self.tol and abs(errorY) < self.tol and self.step != 0:
+#                 self.step = 2
+#             elif self.step != 0:
+#                 self.step = 1
+#             return [errorX, errorY]
+    
+#     def centralize(self, error, dronePos):
+#         self.tol = 30/(dronePos.z - self.blockHeight*self.blockNum)
+#         if error is not None:
+            
+#             vel = TwistStamped()
+#             vel.twist.linear.x = error[0]*(dronePos.z - self.blockHeight*self.blockNum)/1500
+#             vel.twist.linear.y = error[1]*(dronePos.z - self.blockHeight*self.blockNum)/1500
+            
+#             self.pub_vel.publish(vel)
+#             return True
+#         else:
+            
+#             self.pub_vel.publish(TwistStamped())
+#             return False
+        
+#     def lowerBlock(self, dronePos):
+#         if dronePos.z > self.blockHeight*self.blockNum + 0.1 and self.blockNum != 0:
+            
+#             vel = TwistStamped()
+#             vel.twist.linear.z = -0.1*(dronePos.z - self.blockHeight*self.blockNum)
+#             self.pub_vel.publish(vel)
+#             return True
+#         elif dronePos.z > 0.4 and self.blockNum == 0:
+#             vel = TwistStamped()
+#             vel.twist.linear.z = -0.1*(dronePos.z - 0.4)
+#             self.pub_vel.publish(vel)
+#             return True
+#         else:
+#             print("block lowered")
+#             self.pub_vel.publish(TwistStamped())
+#             self.blockNum += 1
+#             self.step = 3
+            
+#             return False
+        
+#     def goUp(self, dronePos):
+#         if dronePos.z < 1:
+#             vel = TwistStamped()
+#             vel.twist.linear.z = 0.2
+#             self.pub_vel.publish(vel)
+#             return True
+#         else:
+#             self.pub_vel.publish(TwistStamped())
+#             self.step = 0
+#             return False
+        
+#     #Internal State Machine
+#     def stackBlock(self, dronePos, center, imShape):
+#         self.type_pub.publish(String("block"))
+#         if self.blockNum > 0:
+#             error = self.getError(center, imShape)
+#             if self.step == 1:
+#                 print("centralizing")
+#                 self.centralize(error, dronePos)
+#             elif self.step == 2:
+#                 print("lowering")
+#                 self.lowerBlock(dronePos) 
+#             elif self.step == 3:
+#                 print("going up")
+#                 self.goUp(dronePos)
+#             elif self.step == 0:
+#                 print("Stop drop")
+#                 self.step = 1
+#                 return "PICKUP"
+            
+#         elif self.blockNum == 0:
+#             error = None
+#             if self.step == 1:
+#                 print("centralizing")
+#                 self.centralize(error)
+#             elif self.step == 2:
+#                 print("lowering")
+#                 self.lowerBlock() 
+#             elif self.step == 3:
+#                 print("going up")
+#                 self.goUp()
+#             elif self.step == 0:
+#                 print("Stop drop")
+#                 self.step = 1
+#                 return "PICKUP"
 
+#         return "DROP"
+    
+#     def center_callback(self, msg):
+#         try:
+#             self.targetCenter = [msg.x, msg.y]
+#         except:
+#             self.targetCenter = None
+#         return
+    
 class dropZone():
-    def __init__(self, pub_vel, type_pub):
-        self.pub_vel = pub_vel
+    def __init__(self, vehicle, setpoint_pub, type_pub):
+        # Drone
+        self.vehicle = vehicle
+        self.arucoPose = None
+        self.arucoAngle = None
+        self.setpoint_pub = setpoint_pub
         self.type_pub = type_pub
-        self.blockNum = 0
+        self.step = "CENTER_YAW" # "CENTER_YAW", "GO_TO_DROP", "DROP", "GO_UP", "END"
+        
+        rospy.Subscriber('/sky_vision/down_cam/aruco/pose', Point, self.aruco_pose_callback)
+        rospy.Subscriber('/sky_vision/down_cam/aruco/angle', Vector3, self.aruco_angle_callback)
+        
+        self.desHeight = 5
         self.blockHeight = 0.5
-        self.step = 1
-        self.targetCenter = None
-        self.tol = 5
-        rospy.Subscriber('/sky_vision/down_cam/block/pose', Point, self.center_callback)
-    
-    def getError(self, center, imShape):
-        if center is not None:
-            errorX = center[0] - imShape[1]//2
-            errorY = -center[1] + imShape[0]//2
-            if abs(errorX) < self.tol and abs(errorY) < self.tol and self.step != 0:
-                self.step = 2
-            elif self.step != 0:
-                self.step = 1
-            return [errorX, errorY]
-    
-    def centralize(self, error, dronePos):
-        self.tol = 30/(dronePos.z - self.blockHeight*self.blockNum)
-        if error is not None:
-            
-            vel = TwistStamped()
-            vel.twist.linear.x = error[0]*(dronePos.z - self.blockHeight*self.blockNum)/1500
-            vel.twist.linear.y = error[1]*(dronePos.z - self.blockHeight*self.blockNum)/1500
-            
-            self.pub_vel.publish(vel)
-            return True
-        else:
-            
-            self.pub_vel.publish(TwistStamped())
-            return False
-        
-    def lowerBlock(self, dronePos):
-        if dronePos.z > self.blockHeight*self.blockNum + 0.1 and self.blockNum != 0:
-            
-            vel = TwistStamped()
-            vel.twist.linear.z = -0.1*(dronePos.z - self.blockHeight*self.blockNum)
-            self.pub_vel.publish(vel)
-            return True
-        elif dronePos.z > 0.4 and self.blockNum == 0:
-            vel = TwistStamped()
-            vel.twist.linear.z = -0.1*(dronePos.z - 0.4)
-            self.pub_vel.publish(vel)
-            return True
-        else:
-            print("block lowered")
-            self.pub_vel.publish(TwistStamped())
-            self.blockNum += 1
-            self.step = 3
-            
-            return False
-        
-    def goUp(self, dronePos):
-        if dronePos.z < 1:
-            vel = TwistStamped()
-            vel.twist.linear.z = 0.2
-            self.pub_vel.publish(vel)
-            return True
-        else:
-            self.pub_vel.publish(TwistStamped())
-            self.step = 0
-            return False
-        
-    #Internal State Machine
-    def stackBlock(self, dronePos, center, imShape):
-        self.type_pub.publish(String("block"))
-        if self.blockNum > 0:
-            error = self.getError(center, imShape)
-            if self.step == 1:
-                print("centralizing")
-                self.centralize(error, dronePos)
-            elif self.step == 2:
-                print("lowering")
-                self.lowerBlock(dronePos) 
-            elif self.step == 3:
-                print("going up")
-                self.goUp(dronePos)
-            elif self.step == 0:
-                print("Stop drop")
-                self.step = 1
-                return "PICKUP"
-            
-        elif self.blockNum == 0:
-            error = None
-            if self.step == 1:
-                print("centralizing")
-                self.centralize(error)
-            elif self.step == 2:
-                print("lowering")
-                self.lowerBlock() 
-            elif self.step == 3:
-                print("going up")
-                self.goUp()
-            elif self.step == 0:
-                print("Stop drop")
-                self.step = 1
-                return "PICKUP"
+        self.blocknum = 1
 
+    def precdrop(self ,dronePos , timer=0):
+        if self.arucoPose is not None and self.arucoAngle is not None:
+            if dronePos.z <= 0.1 + self.blockHeight*self.blocknum:
+                self.vehicle.mode = dronekit.VehicleMode('GUIDED')
+                while self.vehicle.mode != 'GUIDED':
+                    time.sleep(1)
+                self.step = "GO_UP"
+                print('vehicle in GUIDED mode')
+            else:    
+                dist = float(self.arucoPose[2])/100 - (0.1 +self.blockHeight*self.blocknum)
+                msg = self.vehicle.message_factory.landing_target_encode(
+                    timer,
+                    0,
+                    mavutil.mavlink.MAV_FRAME_BODY_NED,
+                    self.arucoAngle[0],
+                    self.arucoAngle[1],
+                    dist,
+                    0,
+                    0,
+                    )
+        
+                self.vehicle.send_mavlink(msg)
+                print("Mensagem enviada")
+            
+    def center_yaw(self, droneOri, dronePos):
+        if math.sqrt(droneOri[2]**2) <= math.pi - 0.2:
+            print(self.droneOri)
+            msg = PoseStamped()
+            msg.header.stamp = rospy.Time.now()
+            msg.pose.position.x = dronePos.x
+            msg.pose.position.y = dronePos.y
+            msg.pose.position.z = dronePos.z
+            self.setpoint_pub.publish(msg)
+            time.sleep(0.25)
+        else:
+            self.step = "GO_TO_DROP"
+
+    def go_up(self, dronePos):
+        if dronePos.z <= self.desHeight:
+            msg = PoseStamped()
+            msg.header.stamp = rospy.Time.now()
+            msg.pose.position.x = dronePos.x
+            msg.pose.position.y = dronePos.y
+            msg.pose.position.z = self.desHeight
+            self.setpoint_pub.publish(msg)
+            time.sleep(0.25)
+        else:
+            self.step = "END"
+
+            
+    def intStateMachine(self, dronePos, droneOri):
+        self.type_pub.publish(String("arucrooked"))
+        if self.step == "CENTER_YAW":
+            print("Centering yaw")
+            self.center_yaw(droneOri, dronePos)
+        elif self.step == "GO_TO_DROP":
+            print("Going to drop")
+            self.vehicle.mode = dronekit.VehicleMode('LAND')
+            while self.vehicle.mode != 'LAND':
+                time.sleep(1)
+            self.precdrop(dronePos)
+        elif self.step == "DROP":
+            print("Dropping")
+            time.sleep(5)
+            self.step = "GO_UP"
+        elif self.step == "GO_UP":
+            print("Going up")
+            self.go_up(dronePos)
+        elif self.step == "END":
+            print("END")
         return "DROP"
-    
-    def center_callback(self, msg):
+        
+    def aruco_pose_callback(self, msg):
         try:
-            self.targetCenter = [msg.x, msg.y]
+            self.arucoPose = [msg.x, msg.y, msg.z]
+            
         except:
-            self.targetCenter = None
-        return
-    
+            self.arucoPose = None
+    def aruco_angle_callback(self, msg):
+        try:
+            self.arucoAngle = [msg.x, msg.y, msg.z]
+        except:
+            self.arucoAngle = None
+
 
 class drone(): # Unifies all drone movement elements, including main state machine
     def __init__(self):
@@ -448,12 +606,12 @@ class drone(): # Unifies all drone movement elements, including main state machi
         # Mavros Publishers 
         self.pub_vel = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=1)
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
-        self.setpoint_pub = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        self.setpoint_pub = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=1)
 
         self.setpoint_pub_raw = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
         
         self.type_pub = rospy.Publisher('/sky_vision/down_cam/type', String, queue_size=1) # Sends detection type to vision node
-
+        self.type_pub_front = rospy.Publisher('/sky_vision/front_cam/type', String, queue_size=1) # Sends detection type to vision node
         # Mavros Subscribers
         try:
             print("\nCreating mavros local position subscriber...")
@@ -467,8 +625,8 @@ class drone(): # Unifies all drone movement elements, including main state machi
         self.droneOri = None
         self.targetZ = 2
         self.curStep = "TAKEOFF" # TAKEOFF, PICKUP, TRANSIT, DROP
-        self.hasBlock = False
-
+        self.hasBlock = False # Set to True to skip prec land, testing purposes only
+        self.takeoffNext = "TRANSIT" # What step the drone should go to after takeoff, Debugging purposes only
         # PICKUP ZONE
         pickupPoint = Point()
         pickupPoint.x = PICKUP_POINT[0]
@@ -483,7 +641,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         transitPoint.y = TRANSIT_POINT[1]
         transitPoint.z = TRANSIT_POINT[2]
 
-        self.transit = transitZone(self.setpoint_pub, self.setpoint_pub_raw, self.type_pub, transitPoint)
+        self.transit = transitZone(self.setpoint_pub, self.setpoint_pub_raw, self.type_pub,self.type_pub_front,  transitPoint)
 
         # DROP ZONE
         dropPoint = Point()
@@ -491,7 +649,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         dropPoint.y = DROP_POINT[1]
         dropPoint.z = DROP_POINT[2]
 
-        self.drop = dropZone(self.pub_vel, self.type_pub)
+        self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub)
 
         print("\nWaiting to be armed...")
 
@@ -507,7 +665,9 @@ class drone(): # Unifies all drone movement elements, including main state machi
                 time.sleep(0.5)
 
                 if self.dronePos.z >= self.targetZ*0.50:
-                    if self.hasBlock is False:
+                    if self.takeoffNext is not None:
+                        self.curStep = self.takeoffNext
+                    elif self.hasBlock is False:
                         self.curStep = "PICKUP"
                     else:
                         self.curStep = "TRANSIT"
@@ -521,11 +681,13 @@ class drone(): # Unifies all drone movement elements, including main state machi
         elif self.curStep == "TRANSIT":
             self.curStep = self.transit.intStateMachine()
         #print(self.curStep)
-            
+        elif self.curStep == "DROP":
+            self.curStep = self.drop.intStateMachine(self.dronePos, self.droneOri)
     def dronePosCallback(self, data):
         try:
             self.dronePos = data.pose.position
-            self.droneOri = data.pose.orientation
+            quaternions = data.pose.orientation
+            self.droneOri = quaternions_to_euler_angle(quaternions.x, quaternions.y, quaternions.z, quaternions.w)
             # print(self.dronePos)
         except:
             pass
