@@ -25,7 +25,7 @@ PICKUP_ROBUST_PRECLAND = 5
 ONLY_YAW = False
 
 # Activate only centralize
-ONLY_CENTRALIZE = 1
+ONLY_CENTRALIZE = 0
 
 # Number os lines detected to avoid false positives
 TRANSIT_ROBUST_LINEFOLLOWER = 10
@@ -194,7 +194,7 @@ class transitZone():
 
         self.line_count = 0
 
-        self.step = "WINDOW"# "GO_TO_START", "FOLLOW_LINE", "WINDOW"
+        self.step =  "GO_TO_START"# "FOLLOW_LINE", "WINDOW"
 
         # Pickup position
         #self.transitPos = PositionTarget()
@@ -209,7 +209,7 @@ class transitZone():
         self.derivative = 0
         self.last_error = 0
         self.Kp_ang = 0.01             # Ku=0.04 T=2. PID: p=0.024,i=0.024,d=0.006. PD: p=0.032, d=0.008. P: p=0.02/0.01
-        self.Ki_ang = 0.015
+        self.Ki_ang = 0
         self.kd_ang = 0
         self.integral_ang = 0
         self.derivative_ang = 0
@@ -256,7 +256,6 @@ class transitZone():
 
         if self.step == "GO_TO_START":
             # print error
-            print("line error: ", self.line_error, "line angle: ", self.line_angle)
             if self.line_detected == 0:
                 #self.setpoint_pub_raw.publish(self.transitPos)
                 self.setpoint_pub.publish(self.transitPos)
