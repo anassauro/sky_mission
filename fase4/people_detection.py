@@ -13,6 +13,7 @@ from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelativ
 from sensor_msgs.msg import Image
 from pymavlink import mavutil # Needed for command message definitions
 import time
+import pandas
 import ultralytics
 import math
 
@@ -75,18 +76,46 @@ class Vehicle:
                     print("Go to Initial")
                     self.initial_state_logic()
                 elif self.state == "PrecisionLanding":
-                    self.precision_landing_state_logic(self.cap)
+                    self.precision_landing_state_logic(cap)
                 elif self.state == "Landed":
                     self.landed_state_logic()
             # Add more states and transitions as needed
     
+    def get_distance_metres(self,aLocation1, aLocation2):
+        """
+        Returns the ground distance in metres between two `LocationGlobal` or `LocationGlobalRelative` objects.
+
+        This method is an approximation, and will not be accurate over large distances and close to the
+        earth's poles. It comes from the ArduPilot test code:
+        https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
+        """
+        dlat = aLocation2.lat - aLocation1.lat
+        dlong = aLocation2.lon - aLocation1.lon
+        return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
+    
+    def distance_to_current_waypoint(self):
+        """
+        Gets distance in metres to the current waypoint.
+        It returns None for the first waypoint (Home location).
+        """
+        nextwaypoint=self.vehicle.commands.next
+
+        if nextwaypoint ==0:
+            return None
+        missionitem= self.vehicle.commands[nextwaypoint-1] #commands are zero indexed
+        lat=missionitem.x
+        lon=missionitem.y
+        alt=missionitem.z
+        targetWaypointLocation=LocationGlobalRelative(lat,lon,alt)
+        distancetopoint = self.get_distance_metres(self.vehicle.location.global_frame, targetWaypointLocation)
+        return distancetopoint
+    
     def initial_state_logic(self):
         # Logic for the Initial state
         print(self.vehicle.commands.next)
-        if(self.vehicle.commands.next < 4 and self.vehicle.commands.next > 1):
+        if(self.vehicle.commands.next < 4) and self.vehicle.commands.next > 2:
                 self.mission.detection(self.cap)
-                self.mission.send_text("teste de cria")
-        if self.vehicle.commands.next>=4:
+        if self.vehicle.commands.next>=5:
             print("Initial")
             self.state = "PrecisionLanding"
 
@@ -100,6 +129,7 @@ class Vehicle:
             print('vehicle in LAND mode')
 
         precision_landing = PrecLand(self.vehicle, 'aruco', marker_size, camera, cap)
+        precision_landing.msg_receiver()
         
         # while self.vehicle.location.global_frame.alt >= 0.2:
         #     ret, frame = self.mission.video().read()
@@ -119,13 +149,21 @@ class PeopleDetection:
 
     def __init__(self, vehicle):
         self.vehicle = vehicle
+        self.predictions = []
+        self.model = torch.hub.load('ultralytics/yolov5', 'custom', '/home/software/Downloads/fase4.pt')  # custom trained model
+        self.model.conf = 0.65
 
     def detection(self,cap):
 
-        model = torch.hub.load('ultralytics/yolov5', 'custom', path='/home/software/Downloads/best.pt')
-        img = cap.read()  # or file, Path, PIL, OpenCV, numpy, list
-        img = '/home/software/Downloads/LariSegurandoPhantom.JPG'
-        results = model(img)
+        ret, img = cap.read()  # or file, Path, PIL, OpenCV, numpy, list
+        img = '/home/software/Documents/sd_card/image2_253.png'
+        results = self.model(img)
+        results.xyxy[0]
+        results.pandas().xyxy[0]
+        self.send_text(str(results))
+        self.predictions.append(results)
+        print(self.predictions)
+
         print(results)
         fig, ax = plt.subplots(figsize=(16, 12))
         ax.imshow(results.render()[0])
@@ -146,7 +184,6 @@ class PeopleDetection:
     
     def send_text(self, text):
         
-            text = f"vem aruquinho"
             message = self.vehicle.message_factory.statustext_encode(mavutil.mavlink.MAV_SEVERITY_INFO, text.encode("utf-8"))            
             self.vehicle.send_mavlink(message)
             
@@ -177,9 +214,10 @@ class PeopleDetection:
     
 class MarkerDetector:
 
-    def __init__(self, target_type, target_size, camera_info):
+    def __init__(self, target_type, target_size, camera_info, cap):
 
-        self.target_type = target_type
+        self.target_type = 'aruco'
+        #self.target_type = target_type
         self.marker_size = target_size
 
         if self.target_type == 'aruco':
@@ -220,8 +258,9 @@ class MarkerDetector:
         nada, rvec, tvec = cv2.solvePnP(marker_points, corners, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
         return rvec, tvec
     
-    def aruco_detection(self, frame):
+    def aruco_detection(self):
 
+        ret, frame = cap.read()
         # Marker detection
         markerCorners, markerIds, rejected = self.detector.detectMarkers(frame)
 
@@ -298,18 +337,18 @@ class PrecLand:
         self.vehicle = vehicle
         
         # Marker detector object
-        self.detector = MarkerDetector(target_type, target_size, camera_info)
+        self.detector = MarkerDetector(target_type, target_size, camera_info, cap)
 
         self.teste = []
     
-    def msg_receiver(self, message):
+    def msg_receiver(self):
 
          # Bridge de ROS para CV
         #cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
-        frame = self.cap.read()
+        ret, frame = self.cap.read()
 
         # Look for the closest target in the frame
-        closest_target = self.detector.aruco_detection(frame)
+        closest_target = self.detector.aruco_detection()
 
         if closest_target is not None:
 
