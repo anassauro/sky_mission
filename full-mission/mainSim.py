@@ -145,6 +145,10 @@ class transitZone():
             print("\nCreating sky_vision line detector subscriber...")
             rospy.Subscriber('/sky_vision/down_cam/line/pose', Point, self.line_pose_callback)
             print("Subscriber is up!")
+            print("\nCreating sky_vision window detector subscriber...")
+            rospy.Subscriber('/sky_vision/front_cam/window/pose', Point, self.window_pose_callback)
+            print("Subscriber is up!")
+
         except:
             print("Error!")
 
@@ -169,7 +173,17 @@ class transitZone():
         self.integral_ang = 0
         self.derivative_ang = 0
         self.last_ang = 0
+
         self.forward_velocity = 0.1
+
+        # Window parameters
+        self.window_maxd = 3
+        self.windowDetected = False
+        self.window_y_vel = 0.1
+        self.window_z_vel = 0.1
+        self.window_move_vel = 0.1
+
+
 
     def line_pose_callback(self, msg):
         try:
@@ -178,6 +192,14 @@ class transitZone():
         except:
             self.line_error = None
             self.line_angle = None
+
+    def window_pose_callback(self, msg):
+        try:
+            self.window_dy = msg.y
+            self.window_dz = msg.Z
+        except:
+            self.window_dy = None
+            self.window_dz = None
 
     def intStateMachine(self):
 
@@ -201,6 +223,9 @@ class transitZone():
         elif self.step == "FOLLOW_LINE":
             if self.line_error is not None and self.line_angle is not None:
                 self.follow_line()
+        
+        elif self.step == "WINDOW":
+            self.window_detetion()
 
         return "TRANSIT"
     
@@ -238,6 +263,65 @@ class transitZone():
         setpoint_.yaw = yaw_setpoint_
 
         self.setpoint_pub_raw.publish(setpoint_)
+
+    
+    def window_detetion(self):
+        # Centralizing in the window
+        if not self.windowDetected:
+            if abs(self.window_dy) < self.maxd:
+                self.window_y_vel = 0
+                self.windowDetected = True
+            else:
+                if self.window_dy > 0:
+                    self.window_y_vel = -0.1
+                else:
+                    self.window_y_vel = 0.1
+
+            # Set velocity 
+            setpoint_ = PositionTarget()
+            vel_setpoint_ = Vector3()
+
+            vel_setpoint_.x = 0
+            vel_setpoint_.y = self.window_y_vel
+            vel_setpoint_.z = 0
+
+            yaw_setpoint_ = 0
+            # Print velocity
+            print(f"x: {vel_setpoint_.x} | y: {vel_setpoint_.y} | z: {vel_setpoint_.z}")
+
+            setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
+            
+            
+            setpoint_.velocity.x = vel_setpoint_.x
+            setpoint_.velocity.y = vel_setpoint_.y
+            setpoint_.velocity.z = vel_setpoint_.z
+
+            setpoint_.yaw = yaw_setpoint_
+
+            
+            self.setpoint_pub_raw.publish(setpoint_)
+
+        # Passing through the window
+        else:
+            #  Move foward
+            setpoint_ = PositionTarget()
+            vel_setpoint_ = Vector3()
+
+            vel_setpoint_.x = self.window_move_vel
+            vel_setpoint_.y = 0
+            vel_setpoint_.z = 0
+            yaw_setpoint_ = 0
+            setpoint_.coordinate_frame = PositionTarget.FRAME_BODY_NED
+            
+            setpoint_.velocity.x = vel_setpoint_.x
+            setpoint_.velocity.y = vel_setpoint_.y
+            setpoint_.velocity.z = vel_setpoint_.z
+
+            setpoint_.yaw = yaw_setpoint_
+
+            self.setpoint_pub_raw.publish(setpoint_)
+
+
 
 
 class dropZone():
