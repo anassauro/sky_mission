@@ -13,7 +13,7 @@ from mavros_msgs.msg import PositionTarget
 PICKUP_POINT = [0, 1, 2]
 
 # (x, y, z) transit estimate location
-TRANSIT_POINT = [2, -5, 2]
+TRANSIT_POINT = [0, -2, 2]
 
 # (x, y, z) pickup estimate location
 DROP_POINT = [8, 0, 2]
@@ -174,7 +174,7 @@ class transitZone():
         self.derivative_ang = 0
         self.last_ang = 0
 
-        self.forward_velocity = 0.1
+        self.forward_velocity = 0.3
 
         # Window parameters
         self.window_maxd = 3
@@ -207,11 +207,14 @@ class transitZone():
         self.type_pub.publish(String("line"))
 
         if self.step == "GO_TO_START":
+            # print error
+            print("line error: ", self.line_error, "line angle: ", self.line_angle)
             if self.line_error is None and self.line_angle is None:
                 self.setpoint_pub.publish(self.transitPos)
                 self.line_count = 0
             else:
                 self.line_count += 1
+                print("line count:",self.line_count)
 
                 if self.line_count > TRANSIT_ROBUST_LINEFOLLOWER:
                     
@@ -233,7 +236,7 @@ class transitZone():
         error_corr = -1 * (self.Kp * self.line_error + self.Ki * self.integral + self.kd * self.derivative)  # PID controler
         # print("error_corr:  ", error_corr, "\nP", normal_error * self.Kp, "\nI", self.integral* self.Ki, "\nD", self.kd * self.derivative)
 
-        angle = int(self.line_angle)
+        angle = self.line_angle
 
         self.integral_ang = float(self.integral_ang + angle)
         self.derivative_ang = angle - self.last_ang
@@ -495,6 +498,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
 
     # General mission state machine
     def stateMachine(self):
+        # print(self.curStep)
 
         if self.curStep == "TAKEOFF":
             if self.vehicle.armed == True:
