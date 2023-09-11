@@ -4,21 +4,24 @@ import math
 import dronekit
 from pymavlink import mavutil
 
-from actuator import Actuator
+#from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 
+# Overall mission altitude
+ALTITUDE = 1.5
+
 # (x, y, z) pickup estimate location
-PICKUP_POINT = [0, 1, 2]
+PICKUP_POINT = [0, 1, ALTITUDE]
 
 # (x, y, z) transit estimate location
-TRANSIT_POINT = [0, -2, 2]
+TRANSIT_POINT = [0, -2, ALTITUDE]
 
 # (x, y, z) pickup estimate location
-DROP_POINT = [8, 0, 2]
+DROP_POINT = [0, -10, 1]
 
 # Number os arucos detected to avoid false positives
 PICKUP_ROBUST_PRECLAND = 5
@@ -68,13 +71,13 @@ def euler_angle_to_quaternions(roll, pitch, yaw):
 
 
 class pickUp():
-    def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos, actuator):
+    def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos):
 
         # Drone
         self.vehicle = vehicle
         self.setpoint_pub = setpoint_pub
         self.step = "GO_TO_PICKUP" # "GO_TO_PICKUP", "PRECLAND", "DISARM"
-        self.actuator = actuator
+        #self.actuator = actuator
         # Aruco
         self.arucoPose = None
         self.arucoAngle = None
@@ -131,7 +134,7 @@ class pickUp():
             # while self.vehicle.armed:
             #     time.sleep(1)
             # print('Vehicle disarmed!')
-            self.actuator.open()
+            #self.actuator.open()
             if self.vehicle.mode != 'GUIDED':
                 self.vehicle.mode = dronekit.VehicleMode('GUIDED')
                 while self.vehicle.mode != 'GUIDED':
@@ -244,16 +247,16 @@ class transitZone():
             self.line_detected = None
 
     def window_pose_callback(self, msg):
-        print(msg)
+        #print(msg)
         try:
             self.window_dy = msg.y
             self.window_dz = msg.z
-            print("Callback: " ,self.window_dy)
+            #print("Callback: " ,self.window_dy)
         except:
             self.window_dy = None
             self.window_dz = None
 
-    def intStateMachine(self):
+    def intStateMachine(self, dronePos):
 
         # Init Pickup phase (looking for arucos)
         self.type_pub.publish(String("line"))
@@ -263,7 +266,7 @@ class transitZone():
             # print error
             if self.line_detected == 0:
                 #self.setpoint_pub_raw.publish(self.transitPos)
-                self.go_to_local(-1, 2, 2, yaw=math.pi/2 * (-1), sleep_time=2)
+                self.go_to_local(0, -2, ALTITUDE, yaw=math.pi/2 * (-1), sleep_time=2)
                 self.line_count = 0
             else:
                 self.line_count += 1
@@ -277,12 +280,19 @@ class transitZone():
                     self.step = "FOLLOW_LINE"
 
         elif self.step == "FOLLOW_LINE":
-            if self.line_error is not None and self.line_angle is not None:
+            if self.line_detected == 1:
                 self.follow_line()
+            # elif self.windowDetected:
+            #      self.step = "WINDOW"
+            elif dronePos.y < -7:
+                return "DROP"
         
         elif self.step == "WINDOW":
             print("Detecting window")
             self.window_detetion()
+            if self.window_dy is None and self.window_dz is None:
+                self.windowDetected = False
+                self.step = "FOLLOW_LINE"
 
         return "TRANSIT"
     
@@ -365,6 +375,8 @@ class transitZone():
 
                 
                 self.setpoint_pub_raw.publish(setpoint_)
+                self.window_dy = None
+                self.window_dz = None
 
         # Passing through the window
         elif not ONLY_CENTRALIZE:
@@ -524,20 +536,22 @@ class transitZone():
 #         return
     
 class dropZone():
-    def __init__(self, vehicle, setpoint_pub, type_pub, actuator):
+    def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos):
         # Drone
         self.vehicle = vehicle
         self.arucoPose = None
         self.arucoAngle = None
         self.setpoint_pub = setpoint_pub
         self.type_pub = type_pub
-        self.actuator = actuator
-        self.step = "CENTER_YAW" # "CENTER_YAW", "GO_TO_DROP", "DROP", "GO_UP", "END"
-        
+        self.pickupPos = pickupPos
+        #self.actuator = actuator
+        self.step = "GO_TO_ZONE" # "GO_TO_ZONE", "CENTER_YAW", "GO_TO_DROP", "DROP", "GO_UP", "END"
+        self.goal_pose = PoseStamped()
+
         rospy.Subscriber('/sky_vision/down_cam/aruco/pose', Point, self.aruco_pose_callback)
         rospy.Subscriber('/sky_vision/down_cam/aruco/angle', Vector3, self.aruco_angle_callback)
         
-        self.desHeight = 5
+        self.desHeight = 1
         self.blockHeight = 0.5
         self.blocknum = 1
 
@@ -567,33 +581,25 @@ class dropZone():
             
     def center_yaw(self, droneOri, dronePos):
         if math.sqrt(droneOri[2]**2) <= math.pi - 0.2:
-            print(self.droneOri)
-            msg = PoseStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.pose.position.x = dronePos.x
-            msg.pose.position.y = dronePos.y
-            msg.pose.position.z = dronePos.z
-            self.setpoint_pub.publish(msg)
-            time.sleep(0.25)
+            self.go_to_local(dronePos.x, dronePos.y, dronePos.z, yaw=math.pi, sleep_time=2)
         else:
             self.step = "GO_TO_DROP"
 
     def go_up(self, dronePos):
         if dronePos.z <= self.desHeight:
-            msg = PoseStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.pose.position.x = dronePos.x
-            msg.pose.position.y = dronePos.y
-            msg.pose.position.z = self.desHeight
-            self.setpoint_pub.publish(msg)
-            time.sleep(0.25)
+            self.go_to_local(dronePos.x, dronePos.y, self.desHeight, math.pi/2 * (-1),  sleep_time=2)
         else:
             self.step = "END"
 
             
     def intStateMachine(self, dronePos, droneOri):
         self.type_pub.publish(String("arucrooked"))
-        if self.step == "CENTER_YAW":
+        if self.step == "GO_TO_ZONE":
+            print("Going to zone")
+            self.go_to_local(self.pickupPos.x, self.pickupPos.y, self.desHeight, yaw=math.pi/2 * (-1), sleep_time=2)
+            if self.arucoPose is not None and self.arucoAngle is not None:
+                self.step = "CENTER_YAW"
+        elif self.step == "CENTER_YAW":
             print("Centering yaw")
             self.center_yaw(droneOri, dronePos)
         elif self.step == "GO_TO_DROP":
@@ -604,7 +610,7 @@ class dropZone():
             self.precdrop(dronePos)
         elif self.step == "DROP":
             print("Dropping")
-            self.actuator.open()
+            #self.actuator.open()
             time.sleep(5)
             self.step = "GO_UP"
         elif self.step == "GO_UP":
@@ -613,6 +619,34 @@ class dropZone():
         elif self.step == "END":
             print("END")
         return "DROP"
+    
+
+
+    def go_to_local(self, goal_x, goal_y, goal_z, yaw = None, sleep_time=5):
+        # rospy.loginfo("Going towards local position: (" + str(goal_x) + ", " + str(goal_y) + ", " + str(goal_z) + "), with a yaw angle of: " + str(yaw))
+
+        init_time = now = time.time()
+        while now-init_time < sleep_time:
+            self.set_position(goal_x, goal_y, goal_z, yaw)
+            now = time.time()
+        
+        # rospy.loginfo("Arrived at requested position")
+    
+    def set_position(self, x, y, z, yaw = None):
+        self.goal_pose.pose.position.x = float(x)
+        self.goal_pose.pose.position.y = float(y)
+        self.goal_pose.pose.position.z = float(z)
+        #self.goal_pose.header.frame_id = ""
+        # if yaw == None:
+        #     self.goal_pose.pose.orientation = self.drone_pose.pose.orientation
+        # else:
+        [self.goal_pose.pose.orientation.x, 
+        self.goal_pose.pose.orientation.y, 
+        self.goal_pose.pose.orientation.z,
+        self.goal_pose.pose.orientation.w] = quaternion_from_euler(0,0,yaw) #roll,pitch,yaw
+            #print("X: " + str(self.goal_pose)))
+
+        self.setpoint_pub.publish(self.goal_pose)
         
     def aruco_pose_callback(self, msg):
         try:
@@ -634,7 +668,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         self.vehicle = dronekit.connect("tcp:127.0.0.1:5763", baud=57600)
 
 
-        self.actuator = Actuator()
+        #self.actuator = Actuator()
         # Mavros Publishers 
         self.pub_vel = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=1)
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
@@ -655,10 +689,10 @@ class drone(): # Unifies all drone movement elements, including main state machi
         # Drone
         self.dronePos = None
         self.droneOri = None
-        self.targetZ = 2
+        self.targetZ = ALTITUDE
         self.curStep = "TAKEOFF" # TAKEOFF, PICKUP, TRANSIT, DROP
         self.hasBlock = False # Set to True to skip prec land, testing purposes only
-        self.takeoffNext = "TRANSIT" # What step the drone should go to after takeoff, Debugging purposes only
+        self.takeoffNext = None #What step the drone should go to after takeoff, Debugging purposes only
 
         self.goal_pose = PoseStamped()
 
@@ -668,7 +702,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         pickupPoint.y = PICKUP_POINT[1]
         pickupPoint.z = PICKUP_POINT[2]
 
-        self.pickup = pickUp(self.vehicle, self.setpoint_pub, self.type_pub, pickupPoint, self.actuator)
+        self.pickup = pickUp(self.vehicle, self.setpoint_pub, self.type_pub, pickupPoint)
 
         # TRANSIT ZONE
         transitPoint = Point()
@@ -684,7 +718,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         dropPoint.y = DROP_POINT[1]
         dropPoint.z = DROP_POINT[2]
 
-        self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub, self.actuator)
+        self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub, dropPoint)
 
         print("\nWaiting to be armed...")
 
@@ -714,9 +748,10 @@ class drone(): # Unifies all drone movement elements, including main state machi
                 self.hasBlock = True
 
         elif self.curStep == "TRANSIT":
-            self.curStep = self.transit.intStateMachine()
+            self.curStep = self.transit.intStateMachine(dronePos=self.dronePos)
         #print(self.curStep)
         elif self.curStep == "DROP":
+            self.type_pub_front.publish(String(""))
             self.curStep = self.drop.intStateMachine(self.dronePos, self.droneOri)
     def dronePosCallback(self, data):
         try:
