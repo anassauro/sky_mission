@@ -1,4 +1,5 @@
 import time
+import argparse
 import RPi.GPIO as GPIO
 
 # To install:
@@ -31,5 +32,17 @@ class actuator():
 
         self.isClosed = True
 
-actuator = actuator()
-actuator.open()
+
+if __name__ == '__main__':
+    actuator = actuator()
+    parser = argparse.ArgumentParser(description='Open or close the actuator')
+    parser.add_argument("--open", action="store_true", help="Open the actuator")
+    parser.add_argument("--close", action="store_true", help="Close the actuator")
+    
+    args = parser.parse_args()
+    if args.open:
+        actuator.open()
+    elif args.close:
+        actuator.close()
+    else:
+        print("No action specified")

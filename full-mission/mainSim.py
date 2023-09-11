@@ -4,6 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 
+from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
@@ -67,13 +68,13 @@ def euler_angle_to_quaternions(roll, pitch, yaw):
 
 
 class pickUp():
-    def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos):
+    def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos, actuator):
 
         # Drone
         self.vehicle = vehicle
         self.setpoint_pub = setpoint_pub
         self.step = "GO_TO_PICKUP" # "GO_TO_PICKUP", "PRECLAND", "DISARM"
-
+        self.actuator = actuator
         # Aruco
         self.arucoPose = None
         self.arucoAngle = None
@@ -130,7 +131,7 @@ class pickUp():
             # while self.vehicle.armed:
             #     time.sleep(1)
             # print('Vehicle disarmed!')
-
+            self.actuator.open()
             if self.vehicle.mode != 'GUIDED':
                 self.vehicle.mode = dronekit.VehicleMode('GUIDED')
                 while self.vehicle.mode != 'GUIDED':
@@ -523,13 +524,14 @@ class transitZone():
 #         return
     
 class dropZone():
-    def __init__(self, vehicle, setpoint_pub, type_pub):
+    def __init__(self, vehicle, setpoint_pub, type_pub, actuator):
         # Drone
         self.vehicle = vehicle
         self.arucoPose = None
         self.arucoAngle = None
         self.setpoint_pub = setpoint_pub
         self.type_pub = type_pub
+        self.actuator = actuator
         self.step = "CENTER_YAW" # "CENTER_YAW", "GO_TO_DROP", "DROP", "GO_UP", "END"
         
         rospy.Subscriber('/sky_vision/down_cam/aruco/pose', Point, self.aruco_pose_callback)
@@ -602,6 +604,7 @@ class dropZone():
             self.precdrop(dronePos)
         elif self.step == "DROP":
             print("Dropping")
+            self.actuator.open()
             time.sleep(5)
             self.step = "GO_UP"
         elif self.step == "GO_UP":
@@ -630,6 +633,8 @@ class drone(): # Unifies all drone movement elements, including main state machi
         # Dronekit vehicle init
         self.vehicle = dronekit.connect("tcp:127.0.0.1:5763", baud=57600)
 
+
+        self.actuator = Actuator()
         # Mavros Publishers 
         self.pub_vel = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=1)
         self.pub_ang_vel = rospy.Publisher('/mavros/setpoint_attitude/cmd_vel', TwistStamped, queue_size=1)
@@ -663,7 +668,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         pickupPoint.y = PICKUP_POINT[1]
         pickupPoint.z = PICKUP_POINT[2]
 
-        self.pickup = pickUp(self.vehicle, self.setpoint_pub, self.type_pub, pickupPoint)
+        self.pickup = pickUp(self.vehicle, self.setpoint_pub, self.type_pub, pickupPoint, self.actuator)
 
         # TRANSIT ZONE
         transitPoint = Point()
@@ -679,7 +684,7 @@ class drone(): # Unifies all drone movement elements, including main state machi
         dropPoint.y = DROP_POINT[1]
         dropPoint.z = DROP_POINT[2]
 
-        self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub)
+        self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub, self.actuator)
 
         print("\nWaiting to be armed...")
 
