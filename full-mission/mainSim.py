@@ -7,6 +7,7 @@ from pymavlink import mavutil
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
+from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 
 # (x, y, z) pickup estimate location
@@ -62,6 +63,8 @@ def euler_angle_to_quaternions(roll, pitch, yaw):
     z = sy * cr * cp - cy * sr * sp
 
     return [w, x, y, z]
+
+
 
 class pickUp():
     def __init__(self, vehicle, setpoint_pub, type_pub, pickupPos):
@@ -175,6 +178,7 @@ class transitZone():
         self.type_pub = type_pub
         self.type_pub_front = type_pub_front
         self.step = "GO_TO_START"
+        self.goal_pose = PoseStamped()
         
         # Line
         self.line_error = None
@@ -258,7 +262,7 @@ class transitZone():
             # print error
             if self.line_detected == 0:
                 #self.setpoint_pub_raw.publish(self.transitPos)
-                self.setpoint_pub.publish(self.transitPos)
+                self.go_to_local(-1, 2, 2, yaw=math.pi/2 * (-1), sleep_time=2)
                 self.line_count = 0
             else:
                 self.line_count += 1
@@ -381,7 +385,31 @@ class transitZone():
 
             self.setpoint_pub_raw.publish(setpoint_)
 
+    def go_to_local(self, goal_x, goal_y, goal_z, yaw = None, sleep_time=5):
+        # rospy.loginfo("Going towards local position: (" + str(goal_x) + ", " + str(goal_y) + ", " + str(goal_z) + "), with a yaw angle of: " + str(yaw))
 
+        init_time = now = time.time()
+        while not rospy.is_shutdown() and now-init_time < sleep_time:
+            self.set_position(goal_x, goal_y, goal_z, yaw)
+            now = time.time()
+        
+        # rospy.loginfo("Arrived at requested position")
+    
+    def set_position(self, x, y, z, yaw = None):
+        self.goal_pose.pose.position.x = float(x)
+        self.goal_pose.pose.position.y = float(y)
+        self.goal_pose.pose.position.z = float(z)
+        #self.goal_pose.header.frame_id = ""
+        # if yaw == None:
+        #     self.goal_pose.pose.orientation = self.drone_pose.pose.orientation
+        # else:
+        [self.goal_pose.pose.orientation.x, 
+        self.goal_pose.pose.orientation.y, 
+        self.goal_pose.pose.orientation.z,
+        self.goal_pose.pose.orientation.w] = quaternion_from_euler(0,0,yaw) #roll,pitch,yaw
+            #print("X: " + str(self.goal_pose)))
+
+        self.setpoint_pub.publish(self.goal_pose)
 
 # class dropZone():
 #     def __init__(self, pub_vel, type_pub):
@@ -626,6 +654,9 @@ class drone(): # Unifies all drone movement elements, including main state machi
         self.curStep = "TAKEOFF" # TAKEOFF, PICKUP, TRANSIT, DROP
         self.hasBlock = False # Set to True to skip prec land, testing purposes only
         self.takeoffNext = "TRANSIT" # What step the drone should go to after takeoff, Debugging purposes only
+
+        self.goal_pose = PoseStamped()
+
         # PICKUP ZONE
         pickupPoint = Point()
         pickupPoint.x = PICKUP_POINT[0]
