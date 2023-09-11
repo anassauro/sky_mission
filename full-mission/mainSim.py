@@ -23,6 +23,12 @@ TRANSIT_POINT = [0, -2, ALTITUDE]
 # (x, y, z) pickup estimate location
 DROP_POINT = [0, -10, 1]
 
+# (x, y, z) go back 1
+GO_BACK_1 = [-4, -10, ALTITUDE]
+
+# (x, y, z) go back 2
+GO_BACK_2 = [-4, 0, ALTITUDE]
+
 # Number os arucos detected to avoid false positives
 PICKUP_ROBUST_PRECLAND = 5
 
@@ -618,6 +624,7 @@ class dropZone():
             self.go_up(dronePos)
         elif self.step == "END":
             print("END")
+            return "GO_BACK"
         return "DROP"
     
 
@@ -660,6 +667,62 @@ class dropZone():
         except:
             self.arucoAngle = None
 
+class goBack():
+    def __init__(self, vehicle, setpoint_pub, type_pub ):
+        # Drone
+        self.vehicle = vehicle
+        self.setpoint_pub = setpoint_pub
+        self.type_pub = type_pub
+        #self.actuator = actuator
+        self.goal_pose = PoseStamped()
+
+        self.step = "GO_BACK_1" # "GO_BACK_2"
+
+    
+    def intStateMachine(self):
+        self.type_pub.publish(String("Go_back"))
+        if self.step == "GO_BACK_1":
+            print("Going back to step 1")
+            self.go_to_local(GO_BACK_1[0], GO_BACK_1[1], GO_BACK_1[2], yaw=math.pi/2 * (-1), sleep_time=2)
+            self.step = "GO_BACK_2"
+        elif self.step == "GO_BACK_2":
+            print("Going back to step 2 ")
+            self.go_to_local(GO_BACK_2[0], GO_BACK_2[1], GO_BACK_2[2], yaw=math.pi/2 * (-1), sleep_time=2)
+            self.step = "GO_BACK_3"
+        elif self.step == "GO_BACK_3":
+            self.go_to_local(PICKUP_POINT[0], PICKUP_POINT[1], PICKUP_POINT[2], yaw=math.pi/2 * (-1), sleep_time=2)
+            return "PICKUP"
+            
+
+        return "GO_BACK"
+        
+
+
+    def go_to_local(self, goal_x, goal_y, goal_z, yaw = None, sleep_time=5):
+        # rospy.loginfo("Going towards local position: (" + str(goal_x) + ", " + str(goal_y) + ", " + str(goal_z) + "), with a yaw angle of: " + str(yaw))
+
+        init_time = now = time.time()
+        while now-init_time < sleep_time:
+            self.set_position(goal_x, goal_y, goal_z, yaw)
+            now = time.time()
+        
+        # rospy.loginfo("Arrived at requested position")
+    
+    def set_position(self, x, y, z, yaw = None):
+        self.goal_pose.pose.position.x = float(x)
+        self.goal_pose.pose.position.y = float(y)
+        self.goal_pose.pose.position.z = float(z)
+        #self.goal_pose.header.frame_id = ""
+        # if yaw == None:
+        #     self.goal_pose.pose.orientation = self.drone_pose.pose.orientation
+        # else:
+        [self.goal_pose.pose.orientation.x, 
+        self.goal_pose.pose.orientation.y, 
+        self.goal_pose.pose.orientation.z,
+        self.goal_pose.pose.orientation.w] = quaternion_from_euler(0,0,yaw) #roll,pitch,yaw
+            #print("X: " + str(self.goal_pose)))
+
+        self.setpoint_pub.publish(self.goal_pose)
 
 class drone(): # Unifies all drone movement elements, including main state machine
     def __init__(self):
@@ -720,6 +783,9 @@ class drone(): # Unifies all drone movement elements, including main state machi
 
         self.drop = dropZone(self.vehicle, self.setpoint_pub, self.type_pub, dropPoint)
 
+        # GO BACK
+        self.go_back = goBack(self.vehicle, self.setpoint_pub, self.type_pub)
+
         print("\nWaiting to be armed...")
 
 
@@ -753,6 +819,10 @@ class drone(): # Unifies all drone movement elements, including main state machi
         elif self.curStep == "DROP":
             self.type_pub_front.publish(String(""))
             self.curStep = self.drop.intStateMachine(self.dronePos, self.droneOri)
+        elif self.curStep == "GO_BACK":
+            self.type_pub_front.publish(String(""))
+            self.curStep = self.go_back.intStateMachine()
+
     def dronePosCallback(self, data):
         try:
             self.dronePos = data.pose.position
