@@ -60,7 +60,7 @@ class Vehicle():
         
         @self.vehicle.on_message('MISSION_CURRENT')
         def waypoint_listener(_, name, message):
-            print("Reached waypoint %d" % message.seq)
+            # print("Reached waypoint %d" % message.seq)
             self.current_wp = message.seq
 
     def run(self):
@@ -82,19 +82,18 @@ class Vehicle():
         if(self.vehicle.commands.next < 6 and self.vehicle.commands.next > 1):
                 self.mission.save_pictures(self.vehicle.location.global_frame)
         if self.vehicle.commands.next>=8:
-            print("Initial")
             self.state = "PrecisionLanding"
 
 
     def precision_landing_state_logic(self):
-        # Logic for the Precision Landing state
-        if self.vehicle.mode != 'LAND':
-            self.vehicle.mode = VehicleMode('LAND')
-            while self.vehicle.mode != 'LAND':
-                time.sleep(1)
-            print('vehicle in LAND mode')
+        # # Logic for the Precision Landing state
+        # if self.vehicle.mode != 'LAND':
+        #     self.vehicle.mode = VehicleMode('LAND')
+        #     while self.vehicle.mode != 'LAND':
+        #         time.sleep(1)
+        #     print('vehicle in LAND mode')
 
-        precision_landing = PrecLand(self.vehicle, 'aruco', marker_size, camera)
+        precision_landing = PrecLand(self, self.vehicle, 'aruco', marker_size, camera)
         rospy.spin()
         # while self.vehicle.location.global_frame.alt >= 0.2:
         #     ret, frame = self.mission.video().read()
@@ -102,11 +101,13 @@ class Vehicle():
         #     if not ret:
         #         continue
         #     precision_landing.msg_receiver(frame)
-
-        if self.current_alt<=0.2:
-            self.state = "Landed"
+        self.state = "Landed"
     
     def landed_state_logic(self):
+        self.vehicle.mode = VehicleMode('STABILIZE')
+        while self.vehicle.armed != False:
+            self.vehicle.armed=False
+            print("ent")
         print("End of mission")
         self.vehicle.close()
                 
@@ -123,7 +124,7 @@ class Mission():
 
     def save_pictures(self, message):
         self.cam_frame = self.capture.read()[1]
-        self.cam_frame = cv2.resize(self.cam_frame, (960, 540))
+        # self.cam_frame = cv2.resize(self.cam_frame, (960, 540))
 
         name = "/home/helena/26AGOSTO2023/simulation_images/image%d.jpg" % self.quantidade_fotos
         # output = "/home//Documents/tagged/image%d.jpg" % self.quantidade_fotos
@@ -301,10 +302,12 @@ class MarkerDetector:
 
 class PrecLand:
 
-    def __init__(self, vehicle, target_type, target_size, camera_info):
+    def __init__(self, instance,vehicle, target_type, target_size, camera_info):
 
         # Drone
         self.vehicle = vehicle
+        self.instance = instance
+        self.landed=False
         
         # Marker detector object
         self.detector = MarkerDetector(target_type, target_size, camera_info)
@@ -319,11 +322,12 @@ class PrecLand:
         self.newimg_pub = rospy.Publisher('camera/colour/image_new', Image, queue_size=10)
         self.cam = Image()
 
-        try:
-            print("Criando subscriber...")
-            self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver)
-        except:
-            print('Erro ao criar subscriber!')
+        if self.landed == False:
+            try:
+                print("Criando subscriber...")
+                self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver)
+            except:
+                print('Erro ao criar subscriber!')
 
         self.teste = []
 
@@ -347,6 +351,18 @@ class PrecLand:
          # Bridge de ROS para CV
         cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
         frame = cam
+        # print(self.vehicle.location.global_relative_frame.alt)
+        if self.vehicle.location.global_relative_frame.alt <=0.2:
+            # print("Landed")
+            self.landed = True
+            self.instance.state = "Landed"
+        
+        if self.landed:
+            self.vehicle.mode = VehicleMode('GUIDED')
+            self.vehicle.armed=False
+            time.sleep(15)
+            print("end")
+            # self.vehicle.mode = VehicleMode('LAND')
 
         # Look for the closest target in the frame
         closest_target = self.detector.aruco_detection(frame)
@@ -359,6 +375,7 @@ class PrecLand:
                     print(self.vehicle.mode)
                     time.sleep(1)
                 print('vehicle in LAND mode')
+
             
             x, y, z, x_ang, y_ang, payload, draw_img = closest_target
 
@@ -402,7 +419,6 @@ if __name__ == '__main__':
     fov = (1.2, 1.1) # Camera FOV
         
     camera = [camera_matrix, dist_coeff, res, fov]
-    mapping = Vehicle()
-    mapping.run()
+    vehicle = Vehicle()
+    vehicle.run()
 
-    rospy.spin()
