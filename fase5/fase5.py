@@ -11,8 +11,7 @@ from simple_pid import PID
 WP1 = LocationGlobalRelative(50.9102414, 6.2255084,15)
 WP2 = LocationGlobalRelative(50.9114878, 6.2276513,15)
 
-
-
+DURATION = 10
 
 class Vehicle:
 
@@ -26,7 +25,7 @@ class Vehicle:
         self.current_alt = 0
         self.vehicle_mode = ''
         self.started = False
-        
+        self.start_position = LocationGlobalRelative(50.910031,6.226726,15)
         parser = argparse.ArgumentParser()
         parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
         args = parser.parse_args()
@@ -64,6 +63,41 @@ class Vehicle:
         def waypoint_listener(_, name, message):
             print("Reached waypoint %d" % message.seq)
             self.current_wp = message.seq
+    
+
+    def arm_and_takeoff(self,aTargetAltitude, vehicle ):
+        """
+        Arms vehicle and fly to aTargetAltitude.
+        """
+
+        print ("Basic pre-arm checks")
+        # Don't try to arm until autopilot is ready
+        while not vehicle.is_armable:
+            print (" Waiting for vehicle to initialise...")
+            time.sleep(1)
+
+        print ("Arming motors")
+        # Copter should arm in GUIDED mode
+        vehicle.mode    = VehicleMode("GUIDED")
+        vehicle.armed   = True
+
+        # Confirm vehicle armed before attempting to take off
+        while not vehicle.armed:
+            print (" Waiting for arming...")
+            time.sleep(1)
+
+        print ("Taking off!")
+        vehicle.simple_takeoff(aTargetAltitude) # Take off to target altitude
+
+        # Wait until the vehicle reaches a safe height before processing the goto (otherwise the command
+        #  after Vehicle.simple_takeoff will execute immediately).
+        while True:
+            print (" Altitude: ", vehicle.location.global_relative_frame.alt)
+            #Break and return from function just below target altitude.
+            if vehicle.location.global_relative_frame.alt>=aTargetAltitude*0.95:
+                print ("Reached target altitude")
+                break
+            time.sleep(1)
         
     def run(self):
             self.mission.mission_duration = 0
@@ -83,11 +117,14 @@ class Vehicle:
             # Add more states and transitions as needed
     
     def initial_state_logic(self):
+        self.arm_and_takeoff(10,self.vehicle)
+        self.vehicle.simple_goto(self.start_position)
+        time.sleep(DURATION)
+
+    def detection_state_logic(self):
         # Logic for the Initial state
-        
-        
-        print(self.vehicle.commands.next)
-        if self.mission.mission_duration <= 15:
+                
+        if self.mission.mission_duration <= 600:
             self.mission.detection(cap)
             print("Tracking aruco")
         else:
