@@ -31,7 +31,7 @@ class Vehicle:
         self.vehicle_mode = ''
         self.started = False
         parser = argparse.ArgumentParser()
-        parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
+        parser.add_argument('--connect', default = 'ttyUSB0:14550')
         args = parser.parse_args()
 
         #-- Connect to the vehicle
@@ -110,7 +110,7 @@ class Vehicle:
         distancetopoint = self.get_distance_metres(self.vehicle.location.global_frame, targetWaypointLocation)
         return distancetopoint
     
-    def initial_state_logic(self):
+    def detection_state_logic(self):
         # Logic for the Initial state
         print(self.vehicle.commands.next)
         if(self.vehicle.commands.next < 4) and self.vehicle.commands.next > 2:
@@ -158,16 +158,10 @@ class PeopleDetection:
         ret, img = cap.read()  # or file, Path, PIL, OpenCV, numpy, list
         img = '/home/software/Documents/sd_card/image2_253.png'
         results = self.model(img)
-        results.xyxy[0]
-        results.pandas().xyxy[0]
         self.send_text(str(results))
-        self.predictions.append(results)
+        results.save(save_dir='results')
         print(self.predictions)
-
         print(results)
-        fig, ax = plt.subplots(figsize=(16, 12))
-        ax.imshow(results.render()[0])
-        plt.show()
 
     def run(self):
             # Check current state and execute corresponding logic
