@@ -160,11 +160,15 @@ def move_to_target(east, altitude):
         time.sleep(1)
 
 # Programa principal
+
+ba = BarcodeAnalyzer()
+time.sleep(1)
+
 try:
-    ba = BarcodeAnalyzer()
+    
     imprimir_telemetria()
     arm_and_takeoff(1)  # Decolar para 1 metro de altitude
-    rospy.spin()
+    
 
     for i in range(4):  # Realizar os movimentos de ida e volta 4 vezes
         for j in range(5):  # Mover 1 metro para a direita e parar por 1 segundo, repetir 5 vezes
