@@ -1,6 +1,9 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/CommandTOL.h>
+#include <string.h>
 
 using namespace ros;
 
@@ -12,7 +15,7 @@ void ahrs_callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
     altitude = msg->pose.position.z;
 }
 
-void centralize(int width, int height, int cX, int cY, int z_offset = -1, Publisher* pub) {
+int* centralize(int width, int height, int cX, int cY, int z_offset = -1, Publisher* pub) {
     //width e height são as dimensões da imagem
     //cX e cY são as coordenadas do centro da figura, em que queremos centralizar
     //z_offset é a altura em que o drone vai ficar ao centralizar, -1 -> indica que a altura não será alterada
@@ -38,23 +41,83 @@ void centralize(int width, int height, int cX, int cY, int z_offset = -1, Publis
 
     //send velocity to drone
     pub->publish(velocity);
-    return 0;
+
+    int error[2] = { error_x, error_y };
+
+    return error;
 }
 
 int main(int argc, char** argv) {
     //iniciando node
     init(argc, argv, "centralize");
-    nodeHandle nh, n;
+    NodeHandle nh;
 
-    Publisher pub = nh.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 1);
-    Subscriber sub = n.subscribe("/mavros/local_position/pose", 1, ahrs_callback);
+    String state = "nothing";
+
+    //publisers
+    Publisher pub_velocity = nh.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 1);
+    Publisher pub_arming = nh.advertise<mavros_msgs::CommandBool>("/mavros/cmd/arming", 1);
+    Publisher pub_takeoff = nh.advertise<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff", 1);
+    Publisher pub_land = nh.advertise<mavros_msgs::CommandTOL>("/mavros/cmd/land", 1);
+
+    //subscribers
+    Subscriber sub_pose = nh.subscribe("/mavros/local_position/pose", 1, ahrs_callback);
 
     Rate loop_rate(60);
     while (ok()) {
-        centralize(640, 480, 320, 240, -1, &pub);
 
+        //spin ros master 
         spinOnce();
         loop_rate.sleep();
+
+        switch (state)
+        {
+        case "nothing":
+            cout << "waiting for start" << endl;
+            cout << "chose a state: " << endl;
+            while (state == "nothing") cin >> state;
+            break;
+        case "arming":
+            //arming
+            mavros_msgs::CommandBool arm;
+            arm.value = true;
+            pub_arming.publish(arm);
+            state = "takeoff";
+            break;
+
+        case "takeoff":
+            //takeoff
+            mavros_msgs::CommandTOL takeoff;
+            takeoff.altitude = 2;
+            pub_takeoff.publish(takeoff);
+            state = "centralize";
+            break;
+
+        case "centralize":
+            //centralize
+            while (abs(error_x) > 5 || abs(error_y) > 5)) {
+                //use sky_vision
+                int error[2];
+                error = centralize(640, 480, 320, 240, &pub);
+            }
+
+            state = "land";
+            break;
+
+        case "land":
+            //land
+            mavros_msgs::CommandTOL land;
+            land.altitude = 0;
+            pub_land.publish(land);
+            state = "nothing";
+            break;
+
+        default:
+            cout << "invalid state" << endl;
+            state = "land";
+            break;
+        }
+
     }
 
     return 0;
