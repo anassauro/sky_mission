@@ -1,21 +1,36 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <std_msgs/String.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
 #include <string.h>
 
 using namespace ros;
 
+#define ARMING 0
+#define TAKEOFF 1
+#define CENTRALIZE 2
+#define LAND 3
+
+
 //global variables
 float altitude; // get z height
+
+//callback functions
+mavros_msgs::State current_state;
+void state_callback(const mavros_msgs::State::ConstPtr& msg) {
+    current_state = *msg;
+}
 
 void ahrs_callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
     //get drone altitude
     altitude = msg->pose.position.z;
 }
 
-int* centralize(int width, int height, int cX, int cY, int z_offset = -1, Publisher* pub) {
+float* centralize(int width, int height, int cX, int cY, Publisher* pub, int z_offset = -1) {
     //width e height são as dimensões da imagem
     //cX e cY são as coordenadas do centro da figura, em que queremos centralizar
     //z_offset é a altura em que o drone vai ficar ao centralizar, -1 -> indica que a altura não será alterada
@@ -42,7 +57,7 @@ int* centralize(int width, int height, int cX, int cY, int z_offset = -1, Publis
     //send velocity to drone
     pub->publish(velocity);
 
-    int error[2] = { error_x, error_y };
+    float error[2] = { error_x, error_y };
 
     return error;
 }
@@ -52,70 +67,94 @@ int main(int argc, char** argv) {
     init(argc, argv, "centralize");
     NodeHandle nh;
 
-    String state = "nothing";
+    int state = ARMING;
 
     //publisers
     Publisher pub_velocity = nh.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 1);
-    Publisher pub_arming = nh.advertise<mavros_msgs::CommandBool>("/mavros/cmd/arming", 1);
-    Publisher pub_takeoff = nh.advertise<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff", 1);
-    Publisher pub_land = nh.advertise<mavros_msgs::CommandTOL>("/mavros/cmd/land", 1);
+    ServiceClient client_arming = nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming", 1);
+    ServiceClient client_takeoff = nh.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff", 1);
+    ServiceClient client_mode = nh.serviceClient<mavros_msgs::SetMode>("/set_mode", 1);
 
     //subscribers
     Subscriber sub_pose = nh.subscribe("/mavros/local_position/pose", 1, ahrs_callback);
+    ros::Subscriber sub_state = nh.subscribe<mavros_msgs::State>("mavros/state", 10, state_callback);
 
     Rate loop_rate(60);
+
+    // wait for FCU connection
+    while (ros::ok() && !current_state.connected) {
+        ROS_INFO("waiting for FCU connection");
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+
     while (ok()) {
 
         //spin ros master 
         spinOnce();
         loop_rate.sleep();
 
+        std_msgs::String msg;
+        mavros_msgs::SetMode mode;
         switch (state)
         {
-        case "nothing":
-            cout << "waiting for start" << endl;
-            cout << "chose a state: " << endl;
-            while (state == "nothing") cin >> state;
-            break;
-        case "arming":
+        case ARMING: {
             //arming
-            mavros_msgs::CommandBool arm;
-            arm.value = true;
-            pub_arming.publish(arm);
-            state = "takeoff";
+            msg.data = "arming";
+            ROS_INFO("%s", msg.data.c_str());
+            mode.request.custom_mode = "GUIDED"; //ardupilot GUIDED mode
+            client_mode.call(mode);
+            ROS_INFO("mode sent: %d", mode.response.mode_sent);
+            if (mode.response.mode_sent) {
+                mavros_msgs::CommandBool arm;
+                arm.request.value = true;
+                client_arming.call(arm);
+                if (arm.response.success) state = TAKEOFF;
+            }
             break;
+        }
 
-        case "takeoff":
+        case TAKEOFF: {
             //takeoff
+            msg.data = "takeoff";
+            ROS_INFO("%s", msg.data.c_str());
             mavros_msgs::CommandTOL takeoff;
-            takeoff.altitude = 2;
-            pub_takeoff.publish(takeoff);
-            state = "centralize";
+            takeoff.request.altitude = 2;
+            client_takeoff.call(takeoff);
+            if (takeoff.response.success) state = CENTRALIZE;
             break;
+        }
 
-        case "centralize":
+        case CENTRALIZE: {
             //centralize
-            while (abs(error_x) > 5 || abs(error_y) > 5)) {
+            msg.data = "centralize";
+            ROS_INFO("%s", msg.data.c_str());
+            float* error;
+            while (abs(error[0]) > 5 || abs(error[1]) > 5) {
                 //use sky_vision
-                int error[2];
-                error = centralize(640, 480, 320, 240, &pub);
+                error = centralize(640, 480, 320, 240, &pub_velocity);
             }
 
-            state = "land";
+            state = LAND;
             break;
+        }
 
-        case "land":
+        case LAND: {
             //land
-            mavros_msgs::CommandTOL land;
-            land.altitude = 0;
-            pub_land.publish(land);
-            state = "nothing";
+            msg.data = "land";
+            ROS_INFO("%s", msg.data.c_str());
+            mode.request.custom_mode = "LAND"; //ardupilot LAND mode
+            client_mode.call(mode);
+            if (mode.response.mode_sent) ROS_INFO("landed");
             break;
+        }
 
-        default:
-            cout << "invalid state" << endl;
-            state = "land";
+        default: {
+            msg.data = "nothing";
+            ROS_INFO("%s", msg.data.c_str());
+            state = LAND;
             break;
+        }
         }
 
     }
