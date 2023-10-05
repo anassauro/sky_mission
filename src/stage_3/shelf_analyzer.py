@@ -60,23 +60,15 @@ def arm_and_takeoff(altitude):
     print("Armando os motores...")
     vehicle.mode = VehicleMode("GUIDED")
     vehicle.armed = True
-
-    while not vehicle.is_armable:
-        print("Esperando para armar...")
-        time.sleep(1)
-
-    while not vehicle.armed:
-        print("Esperando para armar...")
-        time.sleep(1)
-
+    time.sleep(0.5)
     print("Decolando...")
-    vehicle.simple_takeoff(altitude)
-
-    while True:
+    if vehicle.armed:
+        vehicle.simple_takeoff(altitude)
+        time.sleep(1)
         if vehicle.location.global_relative_frame.alt >= altitude * 0.95:
             print("Altitude de ", altitude, " metros alcançada.")
-            break
-        time.sleep(1)
+            step = 1
+            time.sleep(1)
 
 def land():
     print("Iniciando o procedimento de pouso...")
@@ -163,36 +155,46 @@ def move_to_target(east, altitude):
 
 ba = BarcodeAnalyzer()
 time.sleep(1)
-
-try:
+step = 0
+while not rospy.is_shutdown():
+    try:
     
-    imprimir_telemetria()
-    arm_and_takeoff(1)  # Decolar para 1 metro de altitude
-    
+        imprimir_telemetria()
+        if step == 0:
+            arm_and_takeoff(0.5)  # Decolar para 1 metro de altitude
+        elif step == 1:
+            move_to_target(1, 1)
+            print("Indo ate o alvo...")
+            time.sleep(1)
+            step = 2
+        elif step == 2:
+            print("retornando")
+            retornar_e_pousar()
+            time.sleep(1)
+        """
+        for i in range(4):  # Realizar os movimentos de ida e volta 4 vezes
+            for j in range(5):  # Mover 1 metro para a direita e parar por 1 segundo, repetir 5 vezes
+                print("Movendo para a direita...")
+                move_to_target(1 + j, 1 + (0.5*i))  # Mover 1 metro para a direita
 
-    for i in range(4):  # Realizar os movimentos de ida e volta 4 vezes
-        for j in range(5):  # Mover 1 metro para a direita e parar por 1 segundo, repetir 5 vezes
-            print("Movendo para a direita...")
-            move_to_target(1 + j, 1 + (0.5*i))  # Mover 1 metro para a direita
+                print("Parando por 1 segundo...")
+                time.sleep(1)  # Parar por 1 segundo
 
-            print("Parando por 1 segundo...")
-            time.sleep(1)  # Parar por 1 segundo
+            print("Movendo para a esquerda...")
+            move_to_target(0, 1 + (0.5*i))  # Mover 5 metros para a esquerda
 
-        print("Movendo para a esquerda...")
-        move_to_target(0, 1 + (0.5*i))  # Mover 5 metros para a esquerda
+            print("Aguardando por 2 segundos...")
+            time.sleep(2)  # Aguardar por 2 segundos
 
-        print("Aguardando por 2 segundos...")
-        time.sleep(2)  # Aguardar por 2 segundos
-
-    time.sleep(5)
-    print("Pousando...")
-    retornar_e_pousar()  # Pousar o drone
-
-except KeyboardInterrupt:
-    print("Aplicativo interrompido pelo usuário.")
-
-finally:
-    # Desarmar os motores e fechar a conexão com o drone
-    vehicle.armed = False
-    vehicle.close()
-    print(ba.barcode_list)
+        time.sleep(5)
+        print("Pousando...")
+        retornar_e_pousar()  # Pousar o drone
+        """
+    except KeyboardInterrupt:
+        print("Aplicativo interrompido pelo usuário.")
+        break
+    finally:
+        # Desarmar os motores e fechar a conexão com o drone
+        vehicle.armed = False
+        vehicle.close()
+        print(ba.barcode_list)
