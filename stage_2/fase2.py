@@ -13,6 +13,10 @@ from mavros_msgs.msg import PositionTarget
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mav import MAV2
 
+
+SIMULATION = True
+
+
 baseA = [0, 2, 2]   #Mais próxima
 baseB = [2, 2, 4]
 baseC = [8, 8, 1]
