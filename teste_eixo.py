@@ -21,7 +21,7 @@ def main():
     try:
         dr.takeoff(z)
         rospy.sleep(7)
-        dr.go_to_local([1, 0, z], yaw=math.pi/2, sleep_time=2)  #eixo X
+        dr.go_to_local([1, 0, z], yaw=math.pi/2, sleep_time=5)  #eixo X
         time.sleep(sleep)
         dr.go_to_local([0, 1, z], yaw=math.pi/2, sleep_time=2)  #eixo Y
         time.sleep(sleep)

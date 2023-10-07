@@ -74,14 +74,15 @@ def main():
     dr = drone()
     time.sleep(1)
     step = 1
-    local = [1, 5, 1]
+    x, y, z = 1, 5, 1
+
     x_start, z_start = x, z
     
     while not rospy.is_shutdown():
         
         try:
 
-            dr.go_to_local([x])
+            dr.go_to(x,y,z)
             
             if step == 1:
                 if(dr.go_to(x, y, z)):

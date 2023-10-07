@@ -4,6 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
+from mav import MAV2
 
 #from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
@@ -71,34 +72,42 @@ class drone():
         #print(self.current_pose)
 
 def main():
-    dr = drone()
+    rospy.init_node('mavbase2')
+    dr = MAV2()
     time.sleep(1)
     step = 1
     x = 1
     y = 5
     z = 1
     local = [x, y, z]
-    x_start, z_start = x, z
+    #x_start, z_start = x, z
     sleep = 5
     z = 1
     
     while not rospy.is_shutdown():
         
         try:
+            dr.takeoff(2)
+            rospy.sleep(7)
             dr.go_to_local(local, yaw=math.pi/2, sleep_time=2)
             while (z < 4):
                 while (x < 5):
                     x += 0.5
+                    local = [x, y, z]
                     dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
 
                 z += 0.5
+                local = [x, y, z]
 
                 while (x > 1):
                         x -= 0.5
+                        local = [x, y, z]
                         dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
                 
                 z += 0.5
-
+                local = [x, y, z]
+            local = [0,0,0]
+            dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
             print ("End of mission")
                 
             

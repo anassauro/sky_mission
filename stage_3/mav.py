@@ -12,7 +12,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import math
 
 DEBUG = False
-SIMULATION = -1
+SIMULATION = 1
 
 class MAV2():
 

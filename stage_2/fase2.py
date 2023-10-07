@@ -16,6 +16,7 @@ from mav import MAV2
 
 
 SIMULATION = True
+MAX_TIME_ON_BASE = 15
 
 
 baseA = [0, 2, 2]   #Mais próxima
@@ -36,13 +37,16 @@ class QRCodeReader():
         self.qrcode_list = []
         #rospy.init_node('sky_vision_barcode_analyzer', anonymous=False)
         rospy.Subscriber('/sky_vision/down_cam/qrcode_read', String, self.callback)
+        self.found_qr = False
 
     def callback(self, message):
         self.qrcode = message.data
-        if self.qrcode not in self.barcode_list:
+        if self.qrcode not in self.qrcode_list:
             self.qrcode_list.append(self.qrcode)
+        self.found_qr = True
 
 
+"""
 class drone():
     def __init__(self) -> None:
         rospy.init_node("teste")
@@ -53,6 +57,8 @@ class drone():
         self.setpoint_pub = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=1)
         self.vel_pub = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=1)
         self.takeoff_srv = rospy.ServiceProxy('/mavros/cmd/takeoff', CommandTOL)
+        self.qrcode_detector = QRCodeReader()
+        self.found = self.qrcode_detector.found_qr
 
         rospy.Subscriber('mavros/local_position/pose', PoseStamped, self.pos_callback)
 
@@ -136,22 +142,48 @@ class drone():
         except:
             pass
     
-
+"""
 
 def main():
     rospy.init_node('mavbase2')
     dr = MAV2()
-    z = 1
+    qr = QRCodeReader()
+    z = 2
     sleep = 5
 
-    bases = [(2, 0, 0), (0, 1, 0), ]
 
     try:
         dr.takeoff(z)
+        rospy.sleep (7)
+        dr.change_auto_speed(1)
         for base in bases:
-            dr.go_to_local(bases[i], yaw=math.pi/2, sleep_time=2)
-            time.sleep(sleep)
-        base for 
+            dr.go_to_local(base, yaw=math.pi/2, sleep_time=2)
+
+            start = time.time()
+            while (not qr.found_qr and time.time() - start < MAX_TIME_ON_BASE):
+
+                try:
+
+                    print(start)
+
+                    print(time.time() - start)
+                    
+                    print("here")
+
+
+                except KeyboardInterrupt:
+                    print("A")
+                    return
+                
+                finally:
+                    time.sleep(1)
+            
+            qr.found = False
+
+                
+
+
+
         dr.go_to_local([0,0,0], yaw=math.pi/2, sleep_time=2)
         time.sleep(sleep)
         dr.land()
