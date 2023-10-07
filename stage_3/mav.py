@@ -12,7 +12,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import math
 
 DEBUG = False
-SIMULATION = 1
+SIMULATION = -1
 
 class MAV2():
 
@@ -39,12 +39,16 @@ class MAV2():
 
     
         ############### Publishers ##############
-        self.local_position_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size = 20)
+        #gambiarra/setpoint_local
+        #self.local_position_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size = 20)
+        self.local_position_pub = rospy.Publisher('gambiarra/setpoint_local', PoseStamped, queue_size = 20)
         self.velocity_pub = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel',  TwistStamped, queue_size=5)
         self.target_pub = rospy.Publisher('/mavros/setpoint_raw/local', PositionTarget, queue_size=5)
 
         ########## Subscribers ##################
-        self.local_atual = rospy.Subscriber('/mavros/local_position/pose', PoseStamped, self.local_callback)
+        #/gambiarra/local_pose
+        #self.local_atual = rospy.Subscriber('/mavros/local_position/pose', PoseStamped, self.local_callback)
+        self.local_atual = rospy.Subscriber('/gambiarra/local_pose', PoseStamped, self.local_callback)
         self.state_sub = rospy.Subscriber('/mavros/state', State, self.state_callback, queue_size=10) 
         self.extended_state_sub = rospy.Subscriber('/mavros/extended_state', ExtendedState, self.extended_state_callback, queue_size=2)        
     
@@ -228,7 +232,7 @@ class MAV2():
         self.set_param('WPNAV_SPEED', float(guided_vel*100))
 
 
-    def set_vel(self, x, y, z, yaw = 0):
+    def set_vel(self, x=0, y=0, z=0, yaw = 0):
         self.goal_vel.twist.linear.x = float(x)
         self.goal_vel.twist.linear.y = float(y)
         self.goal_vel.twist.linear.z = float(z)
