@@ -74,62 +74,33 @@ def main():
     dr = drone()
     time.sleep(1)
     step = 1
-    local = [1, 5, 1]
+    x = 1
+    y = 5
+    z = 1
+    local = [x, y, z]
     x_start, z_start = x, z
+    sleep = 5
+    z = 1
     
     while not rospy.is_shutdown():
         
         try:
-
-            dr.go_to_local([x])
-            
-            if step == 1:
-                if(dr.go_to(x, y, z)):
-                    step += 1
-                    
-            elif step == 2:
-                if(dr.go_to(x, y , z)):
+            dr.go_to_local(local, yaw=math.pi/2, sleep_time=2)
+            while (z < 4):
+                while (x < 5):
                     x += 0.5
-                    time.sleep(1)
-                    
-                    if(x > 5):
-                        x = x_start
-                        step += 1
-                        
-            elif step == 3:
-                if(dr.go_to(x, y , z)):
-                    z += 0.5
-                    
-                    if(z > 3):
-                        step += 1
-                    else:
-                        step = 2
+                    dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
 
-            else:
-                if(dr.go_to(0, 0 , 3)):
-                    print("END OF MISSION")
-                
-            
+                z += 0.5
 
+                while (x > 1):
+                        x -= 0.5
+                        dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
                 
-            """
-            print("looping")
-                    
-            point = [2, 6, 1]
-            
-            dr.go_to(point[0], point[1], point[2])
-            
-            print("second")
-            
-            for z in range(4):  # Realizar os movimentos de ida e volta 4 vezes
-                
-                dr.go_to(point[0], point[1], point[2] + z)
-                for x in range(5):
-                    
-                    dr.go_to(point[0] + x, point[1], point [2] + z)
+                z += 0.5
 
-            dr.go_to(0, 0, 1)
-            """
+            print ("End of mission")
+                
             
         except KeyboardInterrupt:
             print("Process killed by user.")

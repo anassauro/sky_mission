@@ -4,6 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
+import cv2
 
 #from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
@@ -28,6 +29,18 @@ bases = [baseA, baseB, baseC, baseD, baseE]
 #lista bases não visitadas
 #teste: caso não leia, muda altura
 #ajustar descentralização no gotolocal
+
+class QRCodeReader():
+    def __init__(self) -> None:
+        self.qrcode = String()
+        self.qrcode_list = []
+        #rospy.init_node('sky_vision_barcode_analyzer', anonymous=False)
+        rospy.Subscriber('/sky_vision/down_cam/qrcode_read', String, self.callback)
+
+    def callback(self, message):
+        self.qrcode = message.data
+        if self.qrcode not in self.barcode_list:
+            self.qrcode_list.append(self.qrcode)
 
 
 class drone():
@@ -122,42 +135,28 @@ class drone():
             print(self.current_pose)
         except:
             pass
+    
+
 
 def main():
     rospy.init_node('mavbase2')
     dr = MAV2()
-    square_size = 6
+    z = 1
+    sleep = 5
+
+    bases = [(2, 0, 0), (0, 1, 0), ]
 
     try:
-        dr.takeoff(5)
-        dr.go_to_local(bases[0], yaw=math.pi/2, sleep_time=2)
-        time.sleep(2)
-        dr.go_to_local(bases[1], yaw=math.pi/2, sleep_time=2)
-        time.sleep(2)
-        dr.go_to_local(bases[2], yaw=math.pi/2, sleep_time=2)
+        dr.takeoff(z)
+        for base in bases:
+            dr.go_to_local(bases[i], yaw=math.pi/2, sleep_time=2)
+            time.sleep(sleep)
+        base for 
+        dr.go_to_local([0,0,0], yaw=math.pi/2, sleep_time=2)
+        time.sleep(sleep)
+        dr.land()
+
     except KeyboardInterrupt:
-        print("foi")
-
-    # while not rospy.is_shutdown():
-    #     try:
-    #         for _ in range(4):
-    #             dr.set_position(square_size, 0, 1.2)
-    #             time.sleep(5)
-    #             dr.set_position(square_size, square_size, 1.2)
-    #             time.sleep(5)
-    #             dr.set_position(0, square_size, 1.2)
-    #             time.sleep(5)
-    #             dr.set_position(0, 0, 1.2)
-    #             time.sleep(5)
-
-    #             # Diminuir o tamanho do quadrado para a próxima iteração
-    #             square_size -= 1
-    #             #dr.go_to(-15, 0, 0, 0.25, 0.5)
-
-    #         time.sleep(1)
-            # Sair do loop ou adicionar lógica para continuar conforme necessário
-        # except KeyboardInterrupt:
-        #     print("Cabo")
-        #     break
+        print("cabo")
 
 main()
