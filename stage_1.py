@@ -4,6 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
+from mav import MAV2
 
 #from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3, Twist
@@ -20,19 +21,17 @@ class drone():
     def __init__(self) -> None:
         rospy.init_node("teste")
         
-        self.centralizing = False
-        self.roaming = True
-        
-        self.goal_pose = PoseStamped()
-        self.current_pose = PoseStamped()
-        self.setpoint_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=1)
-        self.pub_vel = rospy.Publisher('/mavos/setpoint_raw/local', PositionTarget, queue_size = 1)
-        self.mode_serv = rospy.ServiceProxy('/mavros/set_mode', SetMode)
-        rospy.Subscriber('/mavros/local_position/pose', PoseStamped, self.pos_callback)
+        mav = MAV2()
+        self.step = "ROAMING" # TAKEOFF, ROAMING, CENTRALIZING, LANDING 
+        self.roam_step = "CENTER" # CENTER, NORTH, EAST, SOUTH, WEST, NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST
+        self.dir_list = ["NORTH", "EAST", "SOUTH", "WEST", "NORTH_EAST", "SOUTH_EAST", "SOUTH_WEST", "NORTH_WEST"]
+        self.arena_size = 10 # tamanho do lado da arena em metros
+        self.roam_vel = 0.5 # velocidade de roaming em m/s
         rospy.Subscriber('/sky_vision/down_cam/pad/bounding_box', Int16MultiArray, self.pad_callback)
         
         print("initiating, goal pose:", self.goal_pose)
         self.pad = list()
+        self.pad_coords = []
 
     def pad_callback(self, msg):
         point = msg.data
@@ -40,7 +39,9 @@ class drone():
         print(point)
         print("Pad pos:", self.pad)
         self.last = time.time()
-        self.centralizing = True
+        for i in self.pad_coords:
+            if abs(i.x - self.mav.current_pose.x) > 1 and (i.y - self.mav.current_pose.y) > 1:
+                self.step = "CENTRALIZING"
         
     def centralize(self):
         #constantes para PID
@@ -48,41 +49,147 @@ class drone():
         kp = 0.050
         kd = 0.0050
         ki = 0.00050
-        while((time.time() - self.last) < TIME_LIMIT and self.centralizing):
+        if((time.time() - self.last) < TIME_LIMIT):
                         
             error = self.pad
             
             if abs(error[0]) < tolerance and abs(error[1]) < tolerance:
                 self.mode_serv(0, "LAND")
-                self.centralizing = False
+                self.step = "LANDING"
                 return
                 
             last_error = [0, 0] # x e y
             I = [0, 0] # x e y
-            vel = PositionTarget()
-            vel.velocity.x = error[0] * kp + (error[0] - last_error[0]) * kd + I[0] * ki
-            vel.velocity.y = error[1] * kp + (error[1] - last_error[1]) * kd + I[1] * ki
             
-            print(vel)
+            vel_x = error[0] * kp + (error[0] - last_error[0]) * kd + I[0] * ki
+            vel_y = error[1] * kp + (error[1] - last_error[1]) * kd + I[1] * ki
+            
             
             last_error = error
             I[0] = I[0] + error[0]
             I[1] = I[1] + error[1]
             
-            self.pub_vel.publish(vel)
+            self.mav.set_vel(vel_x, vel_y, 0)
 
-        self.centralizing = False
+        self.step = "TAKEOFF"
         
-    def pos_callback(self, msg):
-
-        self.current_pose.pose.position.x = float(msg.pose.position.x)
-        self.current_pose.pose.position.y = float(msg.pose.position.y)
-        self.current_pose.pose.position.z = float(msg.pose.position.z)
         
         #print(self.current_pose)
+    def roaming(self):
+        #Flies around the arena, looking for pads
+        if self.roam_step == "CENTER":
+            x_dir = (-self.mav.current_pose.x + self.arena_size/2)/abs(-self.mav.current_pose.x + self.arena_size/2)
+            y_dir = (-self.mav.current_pose.y + self.arena_size/2)/abs(-self.mav.current_pose.y + self.arena_size/2)
+            
+            y_vel = y_dir * self.roam_vel
+            if abs(self.mav.current_pose.x - self.arena_size/2) > TOL:
+                x_vel = x_dir * self.roam_vel
+            else:
+                x_vel = 0
+            if abs(self.mav.current_pose.y - self.arena_size/2) > TOL:
+                y_vel = y_dir * self.roam_vel
+            else:
+                y_vel = 0
+            if x_vel == 0 and y_vel == 0:
+                if len(self.dir_list) == 0:
+                    self.dir_list = ["NORTH", "EAST", "SOUTH", "WEST", "NORTH_EAST", "SOUTH_EAST", "SOUTH_WEST", "NORTH_WEST"]
+                self.roam_step = self.dir_list.pop()
+                self.mav.set_vel(0,0,0)
+                print("CENTERED")
+            self.mav.set_vel(x_vel, y_vel, 0)
+        elif self.roam_step == "NORTH":
+            if abs(self.mav.current_pose.x - self.arena_size) > TOL:
+                self.mav.set_vel(self.roam_vel,0,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("NORTH")
+        elif self.roam_step == "EAST":
+            if abs(self.mav.current_pose.y - self.arena_size) > TOL :
+                self.mav.set_vel(0,self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("EAST")
+        elif self.roam_step == "SOUTH":
+            if abs(self.mav.current_pose.x) > TOL:
+                self.mav.set_vel(-self.roam_vel,0,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("SOUTH")
+        elif self.roam_step == "WEST":
+            if abs(self.mav.current_pose.y) > TOL:
+                self.mav.set_vel(0,-self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("WEST")
+        elif self.roam_step == "NORTH_EAST":
+            if abs(self.mav.current_posex - self.arena_size) > TOL and abs(self.mav.current_pose.y - self.arena_size) > TOL:
+                self.mav.set_vel(self.roam_vel,self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("NORTH_EAST")
+        elif self.roam_step == "SOUTH_EAST":
+            if abs(self.mav.current_pose.x) > TOL and abs(self.mav.current_pose.y - self.arena_size) > TOL:
+                self.mav.set_vel(-self.roam_vel,self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("SOUTH_EAST")
+        elif self.roam_step == "SOUTH_WEST":
+            if abs(self.mav.current_pose.x) > TOL and abs(self.mav.current_pose.y) > TOL:
+                self.mav.set_vel(-self.roam_vel,-self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("SOUTH_WEST")
+        elif self.roam_step == "NORTH_WEST":
+            if abs(self.mav.current_pose.x - self.arena_size) > TOL and abs(self.mav.current_pose.y) > TOL:
+                self.mav.set_vel(self.roam_vel,-self.roam_vel,0)
+            else:
+                self.roam_step = "CENTER"
+                self.mav.set_vel(0,0,0)
+                print("NORTH_WEST")
 
-dr = drone()
-while(not rospy.is_shutdown()):
-    if dr.centralizing:
-        dr.centralize()
+    def takeoff(self):
+        #takeoff
+        self.mav.takeoff(2)
+        if self.mav.current_pose.z > 1.5:
+            self.step = "ROAMING"
+            self.mav.set_vel(0,0,0)
+            print("TAKEOFF")
+    
+    def land(self):
+        #land
+        self.mav.land()
+        if self.mav.current_pose.z < 0.2:
+            self.pad_coords.append(self.mav.current_pose)
+            self.mav.set_vel(0,0,0)
+            print("LANDING")
+            time.sleep(1)
+            self.step = "TAKEOFF"
+
+
+
+if __name__ == "__main__":
+    dr = drone()
+
+
+    while(not rospy.is_shutdown()):
+        try:
+            if dr.step == "TAKEOFF":
+                dr.takeoff()
+            elif dr.step == "ROAMING":
+                dr.roaming()
+            elif dr.step == "CENTRALIZING":
+                dr.centralize()
+            elif dr.step == "LANDING":
+                dr.land()
+        except KeyboardInterrupt:
+            print("Shutting down")
+            break
+
     
