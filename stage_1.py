@@ -49,7 +49,7 @@ class drone():
         kp = 0.050
         kd = 0.0050
         ki = 0.00050
-        if((time.time() - self.last) < TIME_LIMIT):
+        if((time.time() - self.last) < TIME_LIMIT):     
                         
             error = self.pad
             

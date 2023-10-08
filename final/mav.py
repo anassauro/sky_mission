@@ -192,15 +192,18 @@ class MAV2():
 
         self.target_pub.publish(self.pose_target)
 
-    def go_to_local(self, coordenadas, yaw = None, sleep_time=10):
-        rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
+    def go_to_local(self, coordenadas, yaw = None):
+        #rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
         
         FAC = 0.5
         MAX_VEL = 1.5
-        init_time = now = time.time()
         
         position = self.drone_pose.pose.position
 
+        dist_x = coordenadas[0] - position.x
+        dist_y = coordenadas[1] - position.y
+        dist_z = coordenadas[2] - position.z
+        
         while(dist_x > TOL and dist_y > TOL and dist_z > TOL):
 
             dist_x = coordenadas[0] - position.x

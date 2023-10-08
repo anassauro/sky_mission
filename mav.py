@@ -12,7 +12,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import math
 
 DEBUG = False
-SIMULATION = -1
+TOL = 0.5
 
 class MAV2():
 
@@ -194,8 +194,8 @@ class MAV2():
 
 
     
-    def go_to_local(self, coordenadas, yaw = None, sleep_time=5):
-        #rospy.loginfo("Going towards local position: (" + str(goal_x) + ", " + str(goal_y) + ", " + str(goal_z) + "), with a yaw angle of: " + str(yaw))
+    def go_to_local(self, coordenadas, yaw = None, sleep_time=10):
+        rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
         """
         current_x = self.drone_pose.pose.position.x
         current_y = self.drone_pose.pose.position.y
@@ -220,9 +220,17 @@ class MAV2():
                 yaw_diff = yaw + current_yaw
         """
         init_time = now = time.time()
+        #while not rospy.is_shutdown() and now-init_time < sleep_time:
+        
+        #print(type(self.local_atual))
+        #while not (abs(coordenadas[0] - self.drone_pose.pose.position.x) < TOL and
+        #      abs(coordenadas[1] - self.drone_pose.pose.position.y) < TOL and
+        #      abs(coordenadas[2] - self.drone_pose.pose.position.z) < TOL and now-init_time < sleep_time):
+            
         while not rospy.is_shutdown() and now-init_time < sleep_time:
             self.set_position(coordenadas[0], coordenadas[1], coordenadas[2], yaw)
-            now = time.time()
+            print (self.drone_pose)
+            now = time.time()            
         
         rospy.loginfo("Arrived at requested position")
 
@@ -321,7 +329,3 @@ if __name__ == '__main__':
     #mav.go_to_local(1,1,0.5,yaw=math.pi/2, sleep_time=10)
     mav.land()
     rospy.sleep(10)
-    #mav.takeoff(1.2)
-    #rospy.sleep(10)
-    #mav.go_to_local(0,0,1.2,yaw=math.pi/2,sleep_time=15)
-    #mav.land()
