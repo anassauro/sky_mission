@@ -29,7 +29,7 @@ class drone():
         self.roam_vel = 0.5 # velocidade de roaming em m/s
         rospy.Subscriber('/sky_vision/down_cam/pad/bounding_box', Int16MultiArray, self.pad_callback)
         
-        print("initiating, goal pose:", self.goal_pose)
+        
         self.pad = list()
         self.pad_coords = []
 
@@ -40,7 +40,7 @@ class drone():
         print("Pad pos:", self.pad)
         self.last = time.time()
         for i in self.pad_coords:
-            if abs(i.x - self.mav.current_pose.x) > 1 and (i.y - self.mav.current_pose.y) > 1:
+            if abs(i.position.posex - self.mav.drone_pose.position.pose.x) > 1 and (i.position.pose.y - self.mav.drone_pose.position.pose.y) > 1:
                 self.step = "CENTRALIZING"
         
     def centralize(self):
@@ -78,15 +78,15 @@ class drone():
     def roaming(self):
         #Flies around the arena, looking for pads
         if self.roam_step == "CENTER":
-            x_dir = (-self.mav.current_pose.x + self.arena_size/2)/abs(-self.mav.current_pose.x + self.arena_size/2)
-            y_dir = (-self.mav.current_pose.y + self.arena_size/2)/abs(-self.mav.current_pose.y + self.arena_size/2)
+            x_dir = (-self.mav.drone_pose.position.pose.x + self.arena_size/2)/abs(-self.mav.drone_pose.position.pose.x + self.arena_size/2)
+            y_dir = (-self.mav.drone_pose.position.pose.y + self.arena_size/2)/abs(-self.mav.drone_pose.position.pose.y + self.arena_size/2)
             
             y_vel = y_dir * self.roam_vel
-            if abs(self.mav.current_pose.x - self.arena_size/2) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x - self.arena_size/2) > TOL:
                 x_vel = x_dir * self.roam_vel
             else:
                 x_vel = 0
-            if abs(self.mav.current_pose.y - self.arena_size/2) > TOL:
+            if abs(self.mav.drone_pose.position.pose.y - self.arena_size/2) > TOL:
                 y_vel = y_dir * self.roam_vel
             else:
                 y_vel = 0
@@ -98,56 +98,56 @@ class drone():
                 print("CENTERED")
             self.mav.set_vel(x_vel, y_vel, 0)
         elif self.roam_step == "NORTH":
-            if abs(self.mav.current_pose.x - self.arena_size) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x - self.arena_size) > TOL:
                 self.mav.set_vel(self.roam_vel,0,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("NORTH")
         elif self.roam_step == "EAST":
-            if abs(self.mav.current_pose.y - self.arena_size) > TOL :
+            if abs(self.mav.drone_pose.position.pose.y - self.arena_size) > TOL :
                 self.mav.set_vel(0,self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("EAST")
         elif self.roam_step == "SOUTH":
-            if abs(self.mav.current_pose.x) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x) > TOL:
                 self.mav.set_vel(-self.roam_vel,0,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("SOUTH")
         elif self.roam_step == "WEST":
-            if abs(self.mav.current_pose.y) > TOL:
+            if abs(self.mav.drone_pose.position.pose.y) > TOL:
                 self.mav.set_vel(0,-self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("WEST")
         elif self.roam_step == "NORTH_EAST":
-            if abs(self.mav.current_posex - self.arena_size) > TOL and abs(self.mav.current_pose.y - self.arena_size) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x - self.arena_size) > TOL and abs(self.mav.drone_pose.position.pose.y - self.arena_size) > TOL:
                 self.mav.set_vel(self.roam_vel,self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("NORTH_EAST")
         elif self.roam_step == "SOUTH_EAST":
-            if abs(self.mav.current_pose.x) > TOL and abs(self.mav.current_pose.y - self.arena_size) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x) > TOL and abs(self.mav.drone_pose.position.pose.y - self.arena_size) > TOL:
                 self.mav.set_vel(-self.roam_vel,self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("SOUTH_EAST")
         elif self.roam_step == "SOUTH_WEST":
-            if abs(self.mav.current_pose.x) > TOL and abs(self.mav.current_pose.y) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x) > TOL and abs(self.mav.drone_pose.position.pose.y) > TOL:
                 self.mav.set_vel(-self.roam_vel,-self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
                 self.mav.set_vel(0,0,0)
                 print("SOUTH_WEST")
         elif self.roam_step == "NORTH_WEST":
-            if abs(self.mav.current_pose.x - self.arena_size) > TOL and abs(self.mav.current_pose.y) > TOL:
+            if abs(self.mav.drone_pose.position.pose.x - self.arena_size) > TOL and abs(self.mav.drone_pose.position.pose.y) > TOL:
                 self.mav.set_vel(self.roam_vel,-self.roam_vel,0)
             else:
                 self.roam_step = "CENTER"
@@ -157,7 +157,7 @@ class drone():
     def takeoff(self):
         #takeoff
         self.mav.takeoff(2)
-        if self.mav.current_pose.z > 1.5:
+        if self.mav.drone_pose.position.pose.z > 1.5:
             self.step = "ROAMING"
             self.mav.set_vel(0,0,0)
             print("TAKEOFF")
@@ -165,8 +165,8 @@ class drone():
     def land(self):
         #land
         self.mav.land()
-        if self.mav.current_pose.z < 0.2:
-            self.pad_coords.append(self.mav.current_pose)
+        if self.mav.drone_pose.position.pose.z < 0.2:
+            self.pad_coords.append(self.mav.drone_pose.position.pose)
             self.mav.set_vel(0,0,0)
             print("LANDING")
             time.sleep(1)
@@ -176,7 +176,7 @@ class drone():
 
 if __name__ == "__main__":
     dr = drone()
-
+    time.sleep(5)
 
     while(not rospy.is_shutdown()):
         try:
