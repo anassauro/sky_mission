@@ -203,9 +203,12 @@ class MAV2():
         dist_x = coordenadas[0] - position.x
         dist_y = coordenadas[1] - position.y
         dist_z = coordenadas[2] - position.z
-        
-        while(dist_x > TOL and dist_y > TOL and dist_z > TOL):
 
+        print(dist_x, dist_y, dist_z)
+        
+        while(abs(dist_x) > TOL and abs(dist_y) > TOL and abs(dist_z) > TOL):
+            
+            position = self.drone_pose.pose.position
             dist_x = coordenadas[0] - position.x
             dist_y = coordenadas[1] - position.y
             dist_z = coordenadas[2] - position.z
@@ -213,7 +216,10 @@ class MAV2():
             vel_y = dist_y * FAC if dist_y * FAC < MAX_VEL else MAX_VEL
             vel_z = dist_z * FAC if dist_z * FAC < MAX_VEL else MAX_VEL
             self.set_vel(vel_x, vel_y, vel_z)
-            print(vel_x, vel_y, vel_z)
+            print("vel", dist_x, dist_y, dist_z)
+            print("vel", vel_x, vel_y, vel_z)
+
+            time.sleep(0.2)
 
         self.set_vel(0, 0, 0)
 
