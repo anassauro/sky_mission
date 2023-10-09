@@ -12,7 +12,6 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import math
 
 DEBUG = False
-TOL = 0.5
 
 class MAV2():
 
@@ -71,14 +70,13 @@ class MAV2():
     
     def pos_callback(self, msg):
 
-        
         try:
             self.current_pose.x = float(msg.pose.position.x)
             self.current_pose.y = float(msg.pose.position.y)
             self.current_pose.z = float(msg.pose.position.z)
             print(self.current_pose)
         except:
-            pass
+            print("pos callback down...")
 
     def state_callback(self, state_data):
         self.drone_state = state_data
@@ -195,8 +193,9 @@ class MAV2():
     def go_to_local(self, coordenadas, yaw = None):
         #rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
         
+        TOL = 0.15
         FAC = 0.5
-        MAX_VEL = 1.5
+        MAX_VEL = 1.1
         
         position = self.drone_pose.pose.position
 
@@ -204,10 +203,12 @@ class MAV2():
         dist_y = coordenadas[1] - position.y
         dist_z = coordenadas[2] - position.z
 
-        print(dist_x, dist_y, dist_z)
+        print(position)
         
-        while(abs(dist_x) > TOL and abs(dist_y) > TOL and abs(dist_z) > TOL):
+        while(abs(dist_x) > TOL or abs(dist_y) > TOL or abs(dist_z) > TOL):
             
+            time.sleep(0.2)
+
             position = self.drone_pose.pose.position
             dist_x = coordenadas[0] - position.x
             dist_y = coordenadas[1] - position.y
@@ -216,10 +217,9 @@ class MAV2():
             vel_y = dist_y * FAC if dist_y * FAC < MAX_VEL else MAX_VEL
             vel_z = dist_z * FAC if dist_z * FAC < MAX_VEL else MAX_VEL
             self.set_vel(vel_x, vel_y, vel_z)
-            print("vel", dist_x, dist_y, dist_z)
+            print(position)
             print("vel", vel_x, vel_y, vel_z)
 
-            time.sleep(0.2)
 
         self.set_vel(0, 0, 0)
 
@@ -270,15 +270,10 @@ class MAV2():
         while self.drone_state.armed:
             response = self.arm_srv(False)
         rospy.loginfo('Drone is disarmed')
-        
-        
-        # Set drone instant velocity
-        self.set_vel(vel_x, vel_y, vel_z)
-        rospy.loginfo(f"Set_vel -> x: {vel_x} y: {vel_y} z: {vel_z}")
 
     def shake(self):
-        self.set_vel(vel_z = 0.05, yaw = 0.1)
-        self.set_vel(vel_z = -0.05, yaw = -0.1)
+        self.set_vel(0, 0 , 0.05)
+        self.set_vel(0, 0 , -0.05)
 
 
 if __name__ == '__main__':
@@ -286,17 +281,6 @@ if __name__ == '__main__':
     mav = MAV2()
     mav.takeoff(0.5)
     rospy.sleep(5)
-    #import tf
-    #listener = tf.TransformListener()
-    #while not rospy.is_shutdown():
-    #    try:
-    #        (trans,rot) = listener.lookupTransform('camera_odom_frame', 'camera_pose_frame', rospy.Time(0))
-    #        print("translation: " + str(trans))
-    #        print("rotation: " + str(rot))
-    #    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-    #        continue
-    #mav.change_auto_speed(0.25)
-    import math
-    #mav.go_to_local(1,1,0.5,yaw=math.pi/2, sleep_time=10)
+
     mav.land()
     rospy.sleep(10)
