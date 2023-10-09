@@ -6,7 +6,7 @@ import math
 
 
 
-HOVER_DISTANCE = 2
+HOVER_DISTANCE = 1.8
 
 
 
@@ -43,3 +43,5 @@ def main():
 
     except KeyboardInterrupt:
         print ("cabo")
+
+main()
