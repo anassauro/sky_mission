@@ -13,7 +13,7 @@ rospy.init_node('stage_1')
 dr = MAV2()
 
 def centralize(dr : MAV2):
-
+    
     pass
 
 
@@ -23,7 +23,7 @@ def centralize(dr : MAV2):
 search_points = ((1, 1, 2), (-1, -1, 2), (-1, -1, 2), (-1, -1, 2),)
 
 serv = rospy.ServiceProxy('pad_service', String)
-
+"""
 def centralize(self):
     #constantes para PID
     tolerance = 20
@@ -51,24 +51,32 @@ def centralize(self):
         I[1] = I[1] + error[1]
         
         self.mav.set_vel(vel_x, vel_y, 0)
+"""
+
+dr = MAV2()
 
 for point in search_points:
     dr.go_to_local((point[0], point[1], point[2]))
 
-
+    rospy.wait_for_service("pad_service")
     for _ in range(YOLO_TRIES):
-        request = serv()
+        request = serv("Chefia naum liberou o aumosso")
+        time.sleep(5)
         if(request.data == "Pad Found!"):
 
             time.sleep(WAIT_FOR_REALSENSE)
 
-            centralize(dr)
+            #centralize(dr)
+            dr.land()
 
             time.sleep(10)
 
             dr.takeoff(TAKEOFF_DIST)
 
             break
+        else:
+            print("Pad not found. Trying again...")
+
 
 dr.go_to_local((0, 0, TAKEOFF_DIST))
 
