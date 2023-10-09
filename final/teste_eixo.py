@@ -18,23 +18,18 @@ def main():
     dr = MAV2()
     z = 2
     sleep = 5
-    square_size = 1.5
-    tol_time = 15
     try:
         dr.takeoff(z)
-        rospy.sleep(5)
-        dr.go_to_local([-square_size, 0, 3])
-        time.sleep(5)
-        dr.go_to_local([-square_size, square_size, z])
-        time.sleep(5)
-        dr.go_to_local([0, square_size, z])
-        time.sleep(5) 
-        dr.go_to_local([0, 0, z])
-        time.sleep(10)
-        dr.go_to_local([0, 0, z+1])
-        time.sleep(10)
+        rospy.sleep(7)
+        dr.go_to_local([1, 0, z], yaw=math.pi/2, sleep_time=5)  #eixo X
+        time.sleep(sleep)
+        dr.go_to_local([0, 1, z], yaw=math.pi/2, sleep_time=2)  #eixo Y
+        time.sleep(sleep)
+        dr.go_to_local([0, 0, z+1], yaw=math.pi/2, sleep_time=2)  #eixo Z
+        time.sleep(sleep)
+        dr.go_to_local([0, 0, 0], yaw=math.pi/2, sleep_time=2)
+        time.sleep(sleep)
         dr.land()
-
     except KeyboardInterrupt:
         print("foi")
 
