@@ -28,7 +28,7 @@ class BarcodeAnalyzer():
         if self.barcode not in self.barcode_list:
             self.barcode_list.append(self.barcode)
 
-class drone():
+"""class drone():
     
     def __init__(self) -> None:
         rospy.init_node("teste")
@@ -70,31 +70,30 @@ class drone():
         self.current_pose.pose.position.z = float(msg.pose.position.z)
         
         #print(self.current_pose)
+"""
 
 def main():
     rospy.init_node('mavbase2')
     dr = MAV2()
-    time.sleep(1)
-    step = 1
     x = 1
-    y = 5
+    y = 6
     z = 1
     local = [x, y, z]
-    #x_start, z_start = x, z
-    sleep = 5
     z = 1
+    sleep = 5
     
     while not rospy.is_shutdown():
         
         try:
             dr.takeoff(2)
             rospy.sleep(7)
-            dr.go_to_local(local, yaw=math.pi/2, sleep_time=2)
+            dr.go_to_local(local)
+            time.sleep(sleep)
             while (z < 4):
                 while (x < 5):
                     x += 0.5
                     local = [x, y, z]
-                    dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
+                    dr.go_to_local(local)
 
                 z += 0.5
                 local = [x, y, z]
@@ -102,12 +101,14 @@ def main():
                 while (x > 1):
                         x -= 0.5
                         local = [x, y, z]
-                        dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
+                        dr.go_to_local(local)
                 
                 z += 0.5
                 local = [x, y, z]
-            local = [0,0,0]
-            dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
+            local = [0,0,1]
+            dr.go_to_local(local)
+            sleep.time(sleep)
+            dr.land()
             print ("End of mission")
                 
             
