@@ -53,6 +53,7 @@ class MAV2():
         ########## Subscribers ##################
         #/gambiarra/local_pose
         #self.local_atual = rospy.Subscriber('/mavros/local_position/pose', PoseStamped, self.local_callback)
+        rospy.Subscriber("mavros/vision_pose/pose", PoseStamped, self.pose_callback)
         self.local_atual = rospy.Subscriber('/gambiarra/local_pose', PoseStamped, self.local_callback)
         self.state_sub = rospy.Subscriber('/mavros/state', State, self.state_callback, queue_size=10) 
         self.extended_state_sub = rospy.Subscriber('/mavros/extended_state', ExtendedState, self.extended_state_callback, queue_size=2)        
@@ -98,6 +99,14 @@ class MAV2():
     
     def local_callback(self, data):
         self.drone_pose = data
+
+    def pose_callback(self, data):
+        self.cur_time = time.time()
+        if self.hasReset:
+            self.cur_pos = self.coord_fix(data)
+        else:
+            self.cur_pos = data
+            print(self.cur_pos)
 
     def healthChecker(self):
         if self.cur_time != -1 and (time.time() - self.cur_time) > self.thresh:
