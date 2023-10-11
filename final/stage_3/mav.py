@@ -26,12 +26,8 @@ class MAV2():
         self.drone_state = State()
         self.drone_extended_state = ExtendedState()
         self.pose_target = PositionTarget()
-
-        self.cur_time = -1
-        self.thresh = 1
-        self.cont = 0
         self.oldCoord = PoseStamped()
-        self.cur_pos = PoseStamped()    
+        self.cur_pos = PoseStamped()
 
         ############# Services ##################
 
@@ -87,6 +83,21 @@ class MAV2():
 
     def state_callback(self, state_data):
         self.drone_state = state_data
+
+    def pose_callback(self, data):
+        self.cur_time = time.time()
+
+    def healthChecker(self):
+        if self.cur_time != -1 and (time.time() - self.cur_time) > self.thresh:
+            print("Realsense down. Holding...")
+            self.set_vel(0, 0, 0)
+            time.sleep(10)
+            self.cur_time = -1
+            print("Finished holding.")
+            return True
+    
+        else:
+            return False
         
     def extended_state_callback(self, es_data):
         self.drone_extended_state = es_data
@@ -99,27 +110,6 @@ class MAV2():
     
     def local_callback(self, data):
         self.drone_pose = data
-
-    def pose_callback(self, data):
-        self.cur_time = time.time()
-        if self.hasReset:
-            self.cur_pos = self.coord_fix(data)
-        else:
-            self.cur_pos = data
-            print(self.cur_pos)
-
-    def healthChecker(self):
-        if self.cur_time != -1 and (time.time() - self.cur_time) > self.thresh:
-            self.oldCoord = self.cur_pos
-            print("Realsense down. Holding...")
-            self.set_vel(0, 0, 0)
-            time.sleep(10)
-            self.cur_time = -1
-            print("Finished holding.")
-            return False
-    
-        else:
-            True
     
     def wait4start(self):
         rospy.loginfo("Waiting for user to set mode to GUIDED...")
@@ -178,6 +168,45 @@ class MAV2():
         rospy.loginfo("Goind on hold for " + str(hold_time) + " s")
         while not rospy.get_rostime() - now > rospy.Duration(secs=hold_time):
             self.set_vel(0, 0, 0)
+    
+    ####### Goal Position and Velocity #########
+    def set_position(self, x, y, z, yaw = None):
+        self.goal_pose.pose.position.x = float(x)
+        self.goal_pose.pose.position.y = float(y)
+        self.goal_pose.pose.position.z = float(z)
+        #self.goal_pose.header.frame_id = ""
+        if yaw == None:
+            self.goal_pose.pose.orientation = self.drone_pose.pose.orientation
+        else:
+            [self.goal_pose.pose.orientation.x, 
+            self.goal_pose.pose.orientation.y, 
+            self.goal_pose.pose.orientation.z,
+            self.goal_pose.pose.orientation.w] = quaternion_from_euler(0,0,yaw) #roll,pitch,yaw
+            #print("X: " + str(self.goal_pose)))
+
+        self.local_position_pub.publish(self.goal_pose)
+
+    def set_position_target(self, x_position=0, y_position=0, z_position=0, x_velocity=0, y_velocity=0, z_velocity=0, x_aceleration=0, y_aceleration=0, z_aceleration=0, yaw=0, yaw_rate=0, coordinate_frame = PositionTarget.FRAME_LOCAL_NED, type_mask=0b1111110111111000):
+        self.pose_target.coordinate_frame = coordinate_frame #Use PositionTarget.FRAME_LOCAL_NED para movimento relativo ao corpo do drone  
+        self.pose_target.type_mask = type_mask
+        #https://mavlink.io/en/messages/common.html#POSITION_TARGET_TYPEMASK
+
+        self.pose_target.position.x = x_position
+        self.pose_target.position.y = y_position
+        self.pose_target.position.z = z_position
+
+        self.pose_target.velocity.x = x_velocity
+        self.pose_target.velocity.y = y_velocity
+        self.pose_target.velocity.z = z_velocity
+
+        self.pose_target.acceleration_or_force.x = x_aceleration
+        self.pose_target.acceleration_or_force.y = y_aceleration
+        self.pose_target.acceleration_or_force.z = z_aceleration
+
+        self.pose_target.yaw = yaw
+        self.pose_target.yaw_rate = yaw_rate
+
+        self.target_pub.publish(self.pose_target)
 
     def go_to_local(self, coordenadas, yaw = None):
         #rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
@@ -195,10 +224,11 @@ class MAV2():
         dist_z = coordenadas[2] - position.z
 
         print(position)
-        
+
         while(abs(dist_x) > TOL or abs(dist_y) > TOL or abs(dist_z) > TOL):
             
             if(self.healthChecker()):
+            
                 time.sleep(0.2)
 
                 position = self.drone_pose.pose.position
@@ -210,9 +240,10 @@ class MAV2():
                 vel_y = dist_y * FAC if dist_y * FAC < MAX_VEL else MAX_VEL
                 vel_z = dist_z * FAC_Z if dist_z * FAC_Z < MAX_VEL_Z else MAX_VEL_Z
 
-                self.set_vel(vel_x, vel_y, vel_z)
                 print(position)
                 print("vel", vel_x, vel_y, vel_z)
+                self.set_vel(vel_x, vel_y, vel_z)
+
 
         self.set_vel(0, 0, 0)
 
