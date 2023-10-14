@@ -8,3 +8,5 @@ Run this script to install configurations to use the Picamera with the commands 
 This script installs ROS and MAVROS tools to work with Ardupilot.
 # Case_of_error.sh
 Run in case it shows any error when using Picamera commands on terminal.
+# parameters.sh
+Test PiCamera commands.
