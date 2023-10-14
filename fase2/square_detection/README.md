@@ -1,4 +1,4 @@
-## Square_Detection
+# Square_Detection - Version 1.0
 To use the square_detection package, add it to your catkin workspace and run
 ```bash
 
