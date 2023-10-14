@@ -7,7 +7,7 @@ Therefore, we decided to run two other codes within the controller, in addition 
 ## log.lua
 
 The log.lua file must be added to the controller's SD card. From the moment the vehicle is armed, GPS and time information is written to the CSV file. 
-To standardize the GPS time scale to GMT, you must use the import csv.py code.
+To standardize the GPS time scale to UTC, you must use the import csv.py code.
 
 ## mission.lua
 
