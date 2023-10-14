@@ -14,19 +14,19 @@ The repository is divided into:
 * `missions`: missions created `.plan` for each of the phases
 * &#x20;`sd_card`: important settings used on sd cards, mainly in relation to the Raspberry camera
 
-<figure><img src="assets/_MG_5189.JPG" alt=""><figcaption><p>Photo taken in the outdoor competition</p></figcaption></figure>
+<figure><img src="assets/_MG_5189.JPG" alt=""><figcaption><p><em>Photo taken in the outdoor competition</em></p></figcaption></figure>
 
 ## Phase 1: Flight to the Search Area (endurance)
 
 In this mission element, the task was to fly as far as possible around an arbitrary course inside the mission area. In this task, we created a trajectory between two points that were on the edge of the `geofence`, trying to create the longest straight line between two points within the area, maximizing the flight speed. The trajectory plan is uploaded in the `missions` folder and the result log can be viewed in the `deliverables` folder.
 
-<figure><img src="assets/fase1.JPG" alt=""><figcaption><p><em>F450</em>: Drone used in phase 1</p></figcaption></figure>
+<figure><img src="assets/fase1.JPG" alt=""><figcaption><p><em>F450: Drone used in phase 1</em></p></figcaption></figure>
 
 ## Phase 2: Inspect geographic characteristics (mapping and identification)
 
 In this mission element, teams had to locate four a priori known objects on the ground and create an ortho map with which the track of the hikers can be reconstructed. We used the Agisoft Metashape Pro software to create the map. In tests, it was possible to build maps of reasonable quality. On the day of the test, due to the low quality of the photos, the map processing was hampered. Examples can be seen in the `deliverables` folder. Furthermore, in the `fase2` folder, all mapping and post-processing codes are present. In the `missions` folder, you can see the survey planned for the phase.
 
-<figure><img src="assets/_MG_5066.JPG" alt=""><figcaption><p><em>Condor</em>: Drone used in phase 2</p></figcaption></figure>
+<figure><img src="assets/_MG_5066.JPG" alt=""><figcaption><p><em>Condor: Drone used in phase 2</em></p></figcaption></figure>
 
 ## Phase 3: Dynamic Inspection of identified potential locations and finding missing groups (dynamic mission planning):
 
@@ -38,10 +38,10 @@ In this mission element, four waypoints had to be reached in an apriori unknown 
 
 In this mission element, the task was to fly to a known position and identify the number and state (lying on the ground, standing, sitting) the hikers are in. In this task, a synthetic dataset was created with blender and **YOLO v5** was used to train an AI to detect blue dummies that needed to be rescued. The mission for phase 4 is available in the `missions` folder and all image processing is in the `fase4` folder, including the YOLO weights.
 
-<figure><img src="assets/_MG_5090.JPG" alt=""><figcaption><p>Morcego: Drone planned to be used in phase 4 and 5</p></figcaption></figure>
+<figure><img src="assets/_MG_5090.JPG" alt=""><figcaption><p><em>Morcego: Drone planned to be used in phase 4 and 5</em></p></figcaption></figure>
 
 ## Phase 5: Aerial support for the rescue force (dynamic flight speeds)
 
 In this mission, a MAV has to follow a rescue and assist the rescue team vehicle marked with an ArUco marker at an altitude of at least 5 m above the vehicle. This was probably the most difficult phase to implement, due to the variation in vehicle speed. The drone would have to have its PID well adjusted to perform the task well, which would require a lot of tests with the car that was going to be used. The codes for this phase are in the `fase5` folder.
 
-<figure><img src="assets/_MG_5081.JPG" alt=""><figcaption><p>Our team adjusting the drone's takeoff. In the background, you can see the phase 5 vehicle.</p></figcaption></figure>
+<figure><img src="assets/_MG_5081.JPG" alt=""><figcaption><p><em>Our team adjusting the drone's takeoff. In the background, you can see the phase 5 vehicle.</em></p></figcaption></figure>
