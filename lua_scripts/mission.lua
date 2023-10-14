@@ -3,9 +3,7 @@
 -- --  0) Muda para o Guided mode
 -- --  1) Takeoff até a altura takeoff_alt 
 -- --  2) Espera até atingir a altura de takeoff
--- --  3) Vai para frente até a distancia definida
--- --  4) Volta para a posição inicial
--- --  5) Muda para o land mode
+-- --  3) Aciona a missao
 
 local takeoff_alt = 3 -- Altura de takeoff
 local copter_guided_mode_num = 4
