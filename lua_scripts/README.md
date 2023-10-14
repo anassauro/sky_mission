@@ -10,3 +10,6 @@ The log.lua file must be added to the controller's SD card. From the moment the 
 To standardize the GPS time scale to GMT, you must use the import csv.py code.
 
 ## mission.lua
+
+The mission.lua code allows the start of the mission that was uploaded to the controller when the drone is deployed. It automatically takesoff the drone and when the takeoff position is reached, it starts the mission. This allowed us to depend solely on the RC connection to start the mission.
+
