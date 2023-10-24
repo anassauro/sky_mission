@@ -6,10 +6,13 @@ Therefore, we decided to run two other codes within the controller, in addition 
 
 ## log.lua
 
-The log.lua file must be added to the controller's SD card. From the moment the vehicle is armed, GPS and time information is written to the CSV file. 
+This file must be added to the controller's SD card. From the moment the vehicle is armed, GPS and time information is written to the CSV file. 
 To standardize the GPS time scale to UTC, you must use the import csv.py code.
 
 ## mission.lua
 
-The mission.lua code allows the start of the mission that was uploaded to the controller when the drone is armed. It automatically takesoff the drone and when the takeoff position is reached, it starts the mission. This allowed us to depend solely on the RC connection to start the mission.
+This code allows the start of the mission that was uploaded to the controller when the drone is armed. It automatically takesoff the drone and when the takeoff position is reached, it starts the mission. This allowed us to depend solely on the RC connection to start the mission.
 
+## baterry.lua
+
+This code was a prototype for monitoring the drone's battery. The idea was to create a battery Failsafe with Lua. It was not used, but the initiative remains for the future
