@@ -4,6 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
+from mav import MAV2
 
 #from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3
@@ -71,66 +72,44 @@ class drone():
         #print(self.current_pose)
 
 def main():
-    dr = drone()
+    rospy.init_node('mavbase2')
+    dr = MAV2()
     time.sleep(1)
     step = 1
-    x, y, z = 1, 5, 1
-
-    x_start, z_start = x, z
+    x = 1
+    y = 5
+    z = 1
+    local = [x, y, z]
+    #x_start, z_start = x, z
+    sleep = 5
+    z = 1
     
     while not rospy.is_shutdown():
         
         try:
-
-            dr.go_to(x,y,z)
-            
-            if step == 1:
-                if(dr.go_to(x, y, z)):
-                    step += 1
-                    
-            elif step == 2:
-                if(dr.go_to(x, y , z)):
+            dr.takeoff(2)
+            rospy.sleep(7)
+            dr.go_to_local(local, yaw=math.pi/2, sleep_time=2)
+            while (z < 4):
+                while (x < 5):
                     x += 0.5
-                    time.sleep(1)
-                    
-                    if(x > 5):
-                        x = x_start
-                        step += 1
-                        
-            elif step == 3:
-                if(dr.go_to(x, y , z)):
-                    z += 0.5
-                    
-                    if(z > 3):
-                        step += 1
-                    else:
-                        step = 2
+                    local = [x, y, z]
+                    dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
 
-            else:
-                if(dr.go_to(0, 0 , 3)):
-                    print("END OF MISSION")
-                
-            
+                z += 0.5
+                local = [x, y, z]
 
+                while (x > 1):
+                        x -= 0.5
+                        local = [x, y, z]
+                        dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
                 
-            """
-            print("looping")
-                    
-            point = [2, 6, 1]
-            
-            dr.go_to(point[0], point[1], point[2])
-            
-            print("second")
-            
-            for z in range(4):  # Realizar os movimentos de ida e volta 4 vezes
+                z += 0.5
+                local = [x, y, z]
+            local = [0,0,0]
+            dr.go_to_local(local, yaw=math.pi/2, sleep_time=3)
+            print ("End of mission")
                 
-                dr.go_to(point[0], point[1], point[2] + z)
-                for x in range(5):
-                    
-                    dr.go_to(point[0] + x, point[1], point [2] + z)
-
-            dr.go_to(0, 0, 1)
-            """
             
         except KeyboardInterrupt:
             print("Process killed by user.")
