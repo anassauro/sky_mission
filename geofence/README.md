@@ -26,7 +26,7 @@ To perform the verification, we first check each pair of neighboring vertices of
 If these two conditions are satisfied, we add +1 to the winding number. Let's break that down. The (1) condition implies that, to continue the analysis, we have to verify if the ray we drew in the geometric demonstration would cross the side between vertex A and B. That is because,if the condition is met, it means that one of the vertexes is below the Q point and the other one is above Q, so the ray could possibly cross the side if that side is on the right of the point. To know if the side is on the right of the point, we can do the cross product, (2) condition. To illustrate, imagine two vectors, _p1_, from Q to A, and _p2_, from Q to B. If the cross product _p2_ X _p1_, is positive, it means _p1_ is counterclockwise from _p2_. If the cross product is negative, it means _p1_ is clockwise from _p2_.&#x20;
 
 Remember that:
-_p2_ X _p1_ = (_y1_ - _y0_)(_x2_ - _x0_) - (_y2_ - _y0_)(_x1_ - _x0_)
+_p2_ X _p1_ = (_y2_ - _y0_)(_x1_ - _x0_) - (_y1_ - _y0_)(_x2_ - _x0_)
 
 <figure><img src="assets/Screenshot from 2023-10-25 13-53-38.png" alt="" width="563"><figcaption><p><em>Remember that the ray is in the direction Q -> positive x-axis</em></p></figcaption></figure>
 
