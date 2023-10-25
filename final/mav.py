@@ -11,7 +11,15 @@ import numpy as np
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import math
 
+a = TwistStamped()
+a.twist.linear.x = 0
+a.twist.linear.y = 0
+a.t
+
+
+
 DEBUG = False
+TOL = 0.5
 
 class MAV2():
 
@@ -70,13 +78,14 @@ class MAV2():
     
     def pos_callback(self, msg):
 
+        
         try:
             self.current_pose.x = float(msg.pose.position.x)
             self.current_pose.y = float(msg.pose.position.y)
             self.current_pose.z = float(msg.pose.position.z)
             print(self.current_pose)
         except:
-            print("pos callback down...")
+            pass
 
     def state_callback(self, state_data):
         self.drone_state = state_data
@@ -149,7 +158,7 @@ class MAV2():
         now = rospy.get_rostime()
         rospy.loginfo("Goind on hold for " + str(hold_time) + " s")
         while not rospy.get_rostime() - now > rospy.Duration(secs=hold_time):
-            self.set_vel(0, 0, 0)
+            self.set_position(x_init, y_init, z_init)
     
     ####### Goal Position and Velocity #########
     def set_position(self, x, y, z, yaw = None):
@@ -190,42 +199,46 @@ class MAV2():
 
         self.target_pub.publish(self.pose_target)
 
-    def go_to_local(self, coordenadas, yaw = None):
-        #rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
-        
-        TOL = 0.15
-        FAC = 0.5
-        FAC_Z = 0.5
-        MAX_VEL = 1
-        MAX_VEL_Z = 0.5
-        
-        position = self.drone_pose.pose.position
 
-        dist_x = coordenadas[0] - position.x
-        dist_y = coordenadas[1] - position.y
-        dist_z = coordenadas[2] - position.z
-
-        print(position)
+    
+    def go_to_local(self, coordenadas, yaw = None, sleep_time=10):
+        rospy.loginfo("Going towards local position: (" + str(coordenadas[0]) + ", " + str(coordenadas[1]) + ", " + str(coordenadas[2]) + "), with a yaw angle of: " + str(yaw))
+        """
+        current_x = self.drone_pose.pose.position.x
+        current_y = self.drone_pose.pose.position.y
+        current_z = self.drone_pose.pose.position.z
+        [_,_,current_yaw] = euler_from_quaternion([self.drone_pose.pose.orientation.x,self.drone_pose.pose.orientation.y,self.drone_pose.pose.orientation.z,self.drone_pose.pose.orientation.w])
+        if yaw == None:
+            yaw = current_yaw
         
-        while(abs(dist_x) > TOL or abs(dist_y) > TOL or abs(dist_z) > TOL):
+        if yaw*current_yaw >= 0:
+            yaw_diff = yaw - current_yaw
+        else:
+            yaw_diff = yaw + current_yaw
+        while not rospy.is_shutdown() and (np.sqrt((goal_x - current_x  )**2 + (goal_y - current_y)**2 + (goal_z - current_z)**2) + (yaw_diff)**2) > TOL:
+            current_x = self.drone_pose.pose.position.x
+            current_y = self.drone_pose.pose.position.y
+            current_z = self.drone_pose.pose.position.z
+            [_,_,current_yaw] = euler_from_quaternion([self.drone_pose.pose.orientation.x,self.drone_pose.pose.orientation.y,self.drone_pose.pose.orientation.z,self.drone_pose.pose.orientation.w])
+            self.set_position(goal_x, goal_y, goal_z, yaw)
+            if yaw*current_yaw >= 0:
+                yaw_diff = yaw - current_yaw
+            else:
+                yaw_diff = yaw + current_yaw
+        """
+        init_time = now = time.time()
+        #while not rospy.is_shutdown() and now-init_time < sleep_time:
+        
+        #print(type(self.local_atual))
+        #while not (abs(coordenadas[0] - self.drone_pose.pose.position.x) < TOL and
+        #      abs(coordenadas[1] - self.drone_pose.pose.position.y) < TOL and
+        #      abs(coordenadas[2] - self.drone_pose.pose.position.z) < TOL and now-init_time < sleep_time):
             
-            time.sleep(0.2)
-
-            position = self.drone_pose.pose.position
-            dist_x = coordenadas[0] - position.x
-            dist_y = coordenadas[1] - position.y
-            dist_z = coordenadas[2] - position.z
-            vel_x = dist_x * FAC if dist_x * FAC < MAX_VEL else MAX_VEL
-            vel_y = dist_y * FAC if dist_y * FAC < MAX_VEL else MAX_VEL
-            vel_z = dist_z * FAC_Z if dist_z * FAC_Z < MAX_VEL_Z else MAX_VEL_Z
-            self.set_vel(vel_x, vel_y, vel_z)
-            print(position)
-            print("vel", vel_x, vel_y, vel_z)
-
-
-        self.set_vel(0, 0, 0)
-
-
+        while not rospy.is_shutdown() and now-init_time < sleep_time:
+            self.set_position(coordenadas[0], coordenadas[1], coordenadas[2], yaw)
+            print (self.drone_pose)
+            now = time.time()            
+        
         rospy.loginfo("Arrived at requested position")
 
     
@@ -272,10 +285,36 @@ class MAV2():
         while self.drone_state.armed:
             response = self.arm_srv(False)
         rospy.loginfo('Drone is disarmed')
+        
+        
+    #### Additional functions ####
+    
+    def camera_pid(self, x_error, y_error, z_error = 0):
+
+        self.TOL = 0.0140
+        self.PID = 1/1500
+        self.PID_area = 1/500000
+
+        # Centralization PID
+        vel_x = x_error * self.PID
+        vel_y = y_error * self.PID
+        vel_z = z_error * self.PID_area
+
+        # Set PID tolerances
+        if abs(vel_x) < self.TOL:
+            vel_x = 0.0
+        if abs(vel_y) < self.TOL:
+            vel_y = 0.0
+        if abs(vel_z) < self.TOL:
+            vel_z = 0.0
+        
+        # Set drone instant velocity
+        self.set_vel(vel_x, vel_y, vel_z)
+        rospy.loginfo(f"Set_vel -> x: {vel_x} y: {vel_y} z: {vel_z}")
 
     def shake(self):
-        self.set_vel(0, 0 , 0.05)
-        self.set_vel(0, 0 , -0.05)
+        self.set_vel(vel_z = 0.05, yaw = 0.1)
+        self.set_vel(vel_z = -0.05, yaw = -0.1)
 
 
 if __name__ == '__main__':
@@ -283,6 +322,17 @@ if __name__ == '__main__':
     mav = MAV2()
     mav.takeoff(0.5)
     rospy.sleep(5)
-
+    #import tf
+    #listener = tf.TransformListener()
+    #while not rospy.is_shutdown():
+    #    try:
+    #        (trans,rot) = listener.lookupTransform('camera_odom_frame', 'camera_pose_frame', rospy.Time(0))
+    #        print("translation: " + str(trans))
+    #        print("rotation: " + str(rot))
+    #    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+    #        continue
+    #mav.change_auto_speed(0.25)
+    import math
+    #mav.go_to_local(1,1,0.5,yaw=math.pi/2, sleep_time=10)
     mav.land()
     rospy.sleep(10)

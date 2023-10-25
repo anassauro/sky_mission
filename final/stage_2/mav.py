@@ -41,7 +41,7 @@ class MAV2():
         #gambiarra/setpoint_local
         #self.local_position_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size = 20)
         self.local_position_pub = rospy.Publisher('gambiarra/setpoint_local', PoseStamped, queue_size = 20)
-        self.velocity_pub = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel',  TwistStamped, queue_size=5)
+        self.velocity_pub = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel',  TwistStamped, queue_size=1)
         self.target_pub = rospy.Publisher('/mavros/setpoint_raw/local', PositionTarget, queue_size=5)
 
         ########## Subscribers ##################
