@@ -8,7 +8,7 @@ We will give a brief explanation of how the Winding Number algorithm works geome
 
 <figure><img src="assets/Winding_Number_Animation_Small.gif" alt=""><figcaption><p><em>Intuitive demonstration of the winding number. The curve winds twice around the person. Imagine that you are outside the polygon, you will not make a full turn.</em></p></figcaption></figure>
 
-Fortunately, we won't need to use calculus to prove this algorithm, just use vector product. If you're curious, see Dan Sunday's article. Let there be a polygon P with n sides and a point Q in the _xy_ plane. Imagine that you are traveling clockwise through a polygon, walking along its sides from one vertex to another. Let us draw a ray parallel to the _x_ axis leaving the point and going in the positive direction of the _x_ axis. Now, imagine that on your way around the perimeter you have a task: count how many times you cross the ray, adding +1 if you cross the ray from below to above (going up the _y-_axis) and -1 if you cross from above to below &#x20;(descending on the _y_-axis). The total some is the winding number. In the example below, we only get the absolute value because we disregard the difference in clockwise or counterclockwise turns.&#x20;
+Fortunately, we won't need to use calculus to prove this algorithm, just use vector product. If you're curious, see Dan Sunday's article. Let there be a polygon P with n sides and a point Q in the _xy_ plane. Imagine that you are traveling clockwise through a polygon, walking along its sides from one vertex to another. Let us draw a ray parallel to the _x_ axis leaving the point and going in the positive direction of the _x_ axis. Now, imagine that on your way around the perimeter you have a task: count how many times you cross the ray, adding +1 if you cross the ray from below to above (going up the _y_-axis) and -1 if you cross from above to below &#x20;(descending on the _y_-axis). The total some is the winding number. In the example below, we only get the absolute value because we disregard the difference in clockwise or counterclockwise turns.&#x20;
 
 <figure><img src="assets/Screenshot from 2023-10-25 02-43-22.png" alt="" width="563"><figcaption><p><em>See how a point inside the polygon has a winding number different from zero. Note that if Q  is inside the polygon 2 times, as if in a fold, the winding number is also 2.</em></p></figcaption></figure>
 
@@ -24,6 +24,9 @@ To perform the verification, we first check each pair of neighboring vertices of
 2. &#x20;if the vector product between A,B with Q (current position) as origin is greater than 0
 
 If these two conditions are satisfied, we add +1 to the winding number. Let's break that down. The (1) condition implies that, to continue the analysis, we have to verify if the ray we drew in the geometric demonstration would cross the side between vertex A and B. That is because,if the condition is met, it means that one of the vertexes is below the Q point and the other one is above Q, so the ray could possibly cross the side if that side is on the right of the point. To know if the side is on the right of the point, we can do the cross product, (2) condition. To illustrate, imagine two vectors, _p1_, from Q to A, and _p2_, from Q to B. If the cross product _p2_ X _p1_, is positive, it means _p1_ is counterclockwise from _p2_. If the cross product is negative, it means _p1_ is clockwise from _p2_.&#x20;
+
+Remember that:
+_p2_ X _p1_ = (_y1_ - _y0_)(_x2_ - _x0_) - (_y2_ - _y0_)(_x1_ - _x0_)
 
 <figure><img src="assets/Screenshot from 2023-10-25 13-53-38.png" alt="" width="563"><figcaption><p><em>Remember that the ray is in the direction Q -> positive x-axis</em></p></figcaption></figure>
 
