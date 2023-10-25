@@ -4,7 +4,7 @@ The `geofence.lua` code was used as a security measure in the competition and in
 
 ## Geometric Demonstration
 
-We will give a brief explanation of how the Winding Number algorithm works geometrically. Imagine, then, that you are inside a polygon and need to follow its perimeter with your eyes. Note that if you are inside the polygon, you will make at least one revolution around yourself. Otherwise, you will make zero complete turns. The winding number is exactly this number of turns. If it is 0, you are outside the polygon, otherwise you are inside it. This may remind you of some Calculus class about vector fields in closed curves.
+We will give a brief explanation of how the Winding Number algorithm works geometrically. Imagine, then, that you are inside a polygon and need to follow its perimeter with your eyes. Note that if you are inside the polygon, you will make at least one revolution around yourself. Otherwise, you will make zero complete turns. The winding number is exactly this number of turns. If it is 0, you are outside the polygon, otherwise you are inside it. This may remind you of some Calculus classes about vector fields in closed curves.
 
 <figure><img src="assets/Winding_Number_Animation_Small.gif" alt=""><figcaption><p><em>Intuitive demonstration of the winding number. The curve winds twice around the person. Imagine that you are inside the polygon, you will not make a full turn.</em></p></figcaption></figure>
 
