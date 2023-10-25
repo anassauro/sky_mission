@@ -1,8 +1,8 @@
 # CBR 2023 - Flying Robots League
 
-Repository to add codes for the Outdoor phase of IMAV2023. The competition consisted of 5 phases. The team reached fifth place, completing phases 1, 2 and 4. The team's Software technology consisted of the use of **Ardupilot, Lua Scripts, Dronekit, OpenCV and YOLO v5**. Innovations brought by the team in the competition were, for example, **precision landing**, the use of a synthetic dataset created in **Blender** to detect people and objects and a **Geofence** created in Lua.
+Repository to add codes for the CBR 2023. The competition consisted of 4 phases. The team reached fifth place, scoring in phase 3. The team's Software technology consisted of the use of **Ardupilot, Lua Scripts, Dronekit, OpenCV and YOLO v5**. Innovations brought by the team in the competition were, for example, **precision landing**, the use of a synthetic dataset created in **Blender** to detect bases.
 
-Due to time and logistics limitations, phases 3 and 5 were not carried out on the day of the competition. Phase 5, however, was extensively tested by the team and its documentation is present in the repository. In turn, phase 3 was made impossible by telemetry interference.
+Due to time and logistics limitations, phases 1, 2 and 3 (...)
 
 The repository is divided into:
 
