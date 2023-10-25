@@ -1,4 +1,4 @@
-from mav import MAV2
+from ..mav import MAV2
 import rospy
 rospy.init_node('teste')
 

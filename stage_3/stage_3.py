@@ -4,7 +4,7 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
-from mav import MAV2
+from ..mav import MAV2
 
 #from actuator import Actuator
 from geometry_msgs.msg import TwistStamped, PoseStamped, Point, Vector3

@@ -5,7 +5,7 @@ import time
 
 #from actuator import Actuator
 from std_msgs.msg import String
-from mav import MAV2
+from ..mav import MAV2
 
 
 SIMULATION = True
