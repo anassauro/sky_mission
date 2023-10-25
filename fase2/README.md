@@ -1,0 +1,2 @@
+# Drone mapping and object detection using YOLO v5
+In this phase, we used the software Agisoft Metashape Pro to create a orthomosaic of the area being mapped. This was part of the pos-processing task. Before, we planned the surveys based on the RaspBerry Pi Camera resolution and parameters. We tested several times the mapping missions using ROS. However, we realised that ROS was not necessary since we were only using the topic of local position and could easily adapt the code to Dronekit. 
