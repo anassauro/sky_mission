@@ -32,14 +32,14 @@ In this mission element, 16 barcoded boxes were deposited along 4 shelves on the
 ![_MG_6311](https://github.com/SkyRats/sky_mission/assets/106029376/ebdbf2aa-7ab3-4a61-a1aa-be1190ccdf74)
 ><figcaption><p><em>Drone recognizing the barcoded boxes on the shelf</p></figcaption></figure>
 
-## Phase 4: Mobile Robot Landing:&#x20;
+## Phase 4: Mobile Robot Landing:
 
 In this mission element, the team's robots was required to reconnaissance the arena, mapping the environment to detect and land on a base coupled to a land mobile robot. Due to errors in the realsense connected to the drones we were originally using, we opted to utilize as a Plan B a Tello Drone from DJI. The code was based in using the detection of a abrupt height change to kill the drone, that way making it "land" on the base. 
 
 ![Screenshot from MVI_6389 MOV](https://github.com/SkyRats/sky_mission/assets/106029376/bf2e8686-fb09-4941-9ff2-68e979ec8f78)
 ><figcaption><p><em>Tello Drone landing on a moving base</em></p></figcaption></figure>
 
-## Extra: Thechnical Challenge:&#x20;
+## Extra: Thechnical Challenge:
 
 Separate challenge held in the end of the competition that evaluate advances in state-of-the-art flying robot technology that were made. Each team must present a 10 minute Workshop disseminating their drone technologies. For the challenge we chose to present our base detection AI, that inovated by using a synthetic made dataset for its training. 
 
