@@ -3,7 +3,11 @@
 In phase 2, we needed to detect blue squares and give their coordinates with an accuracy of 20 meters. So, the idea of the codes in this folder is to first detect the squares using the `test_square.py` file, with the YOLO weights square.pt. This code detects and creates a coordinates file.txt with these coordinates. Then, we run the `yolo_cluster.py` code to create the so-called "clusters" and find the squares with the output given.
 
 In this documentation, we'll briefly explain how `yolo_cluster.py` code works and give a brief review of the concept of "clusters."
-
+### Dependencies
+- numpy
+- sklearn.cluster
+- collections
+- YOLO v5
 ### Instructions
 
 Run the `test_square.py` inside your YOLO v5 folder (being your mapping images the source) and redirect so that the coordinate file falls into your workspace. Then, within your desired workspace, run the `yolo_cluster.py`, making the necessary modifications to the path and number of clusters.
