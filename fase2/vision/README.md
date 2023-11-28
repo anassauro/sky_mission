@@ -16,7 +16,7 @@ Imagine that you are mapping a field and have received the coordinates of the ph
 
 <figure><img src="assets/detections_red.png" alt="" width="375"><figcaption><p><em>Representation of what should be the detections</em></p></figcaption></figure>
 
-<figure><img src="Cluster 1.png" alt="" width="375"><figcaption><p><em>Representation of what the process of clustering should look like based on the coordinates file</em></p></figcaption></figure>
+<figure><img src="assets/Cluster 1.png" alt="" width="375"><figcaption><p><em>Representation of what the process of clustering should look like based on the coordinates file</em></p></figcaption></figure>
 
 Since we knew that the number of clusters was four, this makes it easier to apply the algorithm. The code still needs more testing to be trusted.
 
