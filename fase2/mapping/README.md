@@ -4,7 +4,7 @@ The intention of phase 2 was to map the competition area. To do this, we created
 
 
 
-<figure><img src="mapa_odonto_resized.jpg" alt=""><figcaption><p>_One of the maps we created when testing in USP. Although the quality was not the best, the mission was fast and the processing took less than 10 minutes._</p></figcaption></figure>
+<figure><img src="mapa_odonto_resized.jpg" alt=""><figcaption><p><em>One of the maps we created when testing in USP. Although the quality was not the best, the mission was fast and the processing took less than 10 minutes.</em></p></figcaption></figure>
 
 
 
