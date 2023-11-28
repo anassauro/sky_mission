@@ -6,7 +6,7 @@ In this documentation, we'll briefly explain how `yolo_cluster.py` code works an
 
 ### Instructions
 
-Run the `test_square.py` inside your YOLO v5 folder and redirect so that the coordinate file falls into your workspace. Then, within your desired workspace, run the `yolo_cluster.py`, making the necessary modifications to the path and number of clusters.
+Run the `test_square.py` inside your YOLO v5 folder (being your mapping images the source) and redirect so that the coordinate file falls into your workspace. Then, within your desired workspace, run the `yolo_cluster.py`, making the necessary modifications to the path and number of clusters.
 
 ### How to get the coordinates of each square?
 
