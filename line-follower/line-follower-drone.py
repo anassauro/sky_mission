@@ -122,7 +122,7 @@ class line_follower:
                 if w_min > h_min and angle < 0:
                     angle = 90 + angle
 
-                # Rotare image
+                # Rotate image
                 angle += 90
 
                 # Optmize angle 
