@@ -20,25 +20,23 @@ def main():
     sleep = 5
     square_size = 1.5
     tol_time = 15
-    while not rospy.is_shutdown:
-        try:
-            dr.takeoff(z)
-            rospy.sleep(5)
-            dr.go_to_local([-square_size, 0, 3])
-            time.sleep(5)
-            dr.go_to_local([-square_size, square_size, z])
-            time.sleep(5)
-            dr.go_to_local([0, square_size, z])
-            time.sleep(5) 
-            dr.go_to_local([0, 0, z])
-            time.sleep(10)
-            dr.go_to_local([0, 0, z+1])
-            time.sleep(10)
-            dr.land()
+    try:
+        dr.takeoff(z)
+        rospy.sleep(5)
+        dr.go_to_local([-square_size, 0, z])
+        time.sleep(5)
+        dr.go_to_local([-square_size, square_size, z])
+        time.sleep(5)
+        dr.go_to_local([0, square_size, z])
+        time.sleep(5) 
+        dr.go_to_local([0, 0, z])
+        time.sleep(5)
+        dr.go_to_local([0, 0, z+1])
+        time.sleep(5)
+        dr.land()
 
-        except KeyboardInterrupt:
-            print("foi")
-            break
+    except KeyboardInterrupt:
+        print("foi")
 
 
 main()
