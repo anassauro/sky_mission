@@ -41,7 +41,7 @@ def main():
     z = 2
     x, y, z = 1, 2, 0       #QR Code distance from takeoff
 
-    electromagnet = 11
+    electromagnet = 6
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(electromagnet, GPIO.OUT)
 

@@ -1,4 +1,4 @@
-from RPi.GPIO as gpio
+import RPi.GPIO as gpio
 from time import sleep
 
 class Eletroima():
