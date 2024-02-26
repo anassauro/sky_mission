@@ -38,38 +38,71 @@ def main():
     dr = MAV2()
     qr = QRCodeReader()
     dr.change_auto_speed(1)
-    z = 2
-    x, y, z = 1, 2, 0       #QR Code distance from takeoff
+    z = 1
+    x, y = 1, 2       #QR Code distance from takeoff
 
     electromagnet = 6
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(electromagnet, GPIO.OUT)
 
-    while True:
+    while not qr.found_qr:
         try:
             dr.takeoff(z)
             rospy.sleep(5)
-            dr.go_to_local([x, y,z+0.5])
+            dr.go_to_local([x, y, z + 0.5])
             rospy.sleep(5)
-            if (not qr.found_qr):
+            
+            while z > 0.2 and not qr.found_qr:
+                dr.go_to_local([x, y, z])
+                rospy.sleep(2)
+                z -= 0.1
+            
+            if not qr.found_qr:
                 GPIO.output(electromagnet, False)
                 dr.go_to_local([x, y, z + 0.4])
                 rospy.sleep(5)
-                dr.go_to_local([x, y, z + 1])
-                rospy.sleep(5)
+                
                 for i in np.arange(1, 0.4, -0.1):
                     dr.go_to_local([x, y, z + i])
                     rospy.sleep(2)
-            if (not qr.found_qr):
-                print ("Not found")
+                    
+                if not qr.found_qr:
+                    print("Not found")
+                    rospy.sleep(2)
+                    dr.go_to_local([x, y, 1.5])
+                    rospy.sleep(2)
+                    dr.go_to_local([0, 0, 1.5])
+                    rospy.sleep(2)
+                    dr.land()
+
+                else:
+                    print("QR Code found!")
+                    print("QR Code list:", qr.qrcode_list)
+                    GPIO.output(electromagnet, True)
+                    dr.go_to_local([x, y, 0])
+                    qr.found_qr = False
+                    rospy.sleep(2)
+                    dr.go_to_local([x, y, 1.5])
+                    rospy.sleep(2)
+                    dr.go_to_local([0, 0, 1.5])
+                    rospy.sleep(2)
+                    dr.land()
             else:
-                print("QR Code found!")
-                print("QR Code list:", qr.qrcode_list)
-                GPIO.output(electromagnet, True)
-                qr.found_qr = False
+                    print("QR Code found!")
+                    print("QR Code list:", qr.qrcode_list)
+                    GPIO.output(electromagnet, True)
+                    dr.go_to_local([x, y, 0])
+                    qr.found_qr = False
+                    rospy.sleep(2)
+                    dr.go_to_local([x, y, 1.5])
+                    rospy.sleep(2)
+                    dr.go_to_local([0, 0, 1.5])
+                    rospy.sleep(2)
+                    dr.land()
 
         except KeyboardInterrupt:
             print("foi")
+
 
 
 main()
