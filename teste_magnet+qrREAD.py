@@ -52,6 +52,7 @@ def main():
             dr.go_to_local([x, y,z+0.5])
             rospy.sleep(5)
             if (not qr.found_qr):
+                GPIO.output(electromagnet, False)
                 dr.go_to_local([x, y, z + 0.4])
                 rospy.sleep(5)
                 dr.go_to_local([x, y, z + 1])
@@ -60,12 +61,11 @@ def main():
                     dr.go_to_local([x, y, z + i])
                     rospy.sleep(2)
             if (not qr.found_qr):
-                GPIO.output(electromagnet, False)
                 print ("Not found")
             else:
-                GPIO.output(electromagnet, True)
                 print("QR Code found!")
                 print("QR Code list:", qr.qrcode_list)
+                GPIO.output(electromagnet, True)
                 qr.found_qr = False
 
         except KeyboardInterrupt:
