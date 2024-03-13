@@ -2,6 +2,7 @@ import rospy
 import time
 import numpy as np
 import RPi.GPIO as GPIO
+from std_msgs.msg import String
 
 from mav import MAV2
 
