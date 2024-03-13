@@ -23,7 +23,5 @@ class Eletroima():
             self.on()
 
 if __name__ == "__main__":
-    eletroima = Eletroima(6)
+    eletroima = Eletroima(11)
     eletroima.on()
-    sleep(5)
-    gpio.cleanup()

@@ -23,13 +23,13 @@ def main():
     try:
         dr.takeoff(z)
         rospy.sleep(7)
-        dr.go_to_local([1, 0, z], sleep_time=5)  #eixo X
+        dr.go_to_local([1, 0, z], 0, sleep_time=5)  #eixo X
         time.sleep(sleep)
-        dr.go_to_local([0, 1, z], sleep_time=5)  #eixo Y
+        dr.go_to_local([0, 1, z], 0, sleep_time=2)  #eixo Y
         time.sleep(sleep)
-        dr.go_to_local([0, 0, z+1], sleep_time=5)  #eixo Z
+        dr.go_to_local([0, 0, z+1], 0, sleep_time=2)  #eixo Z
         time.sleep(sleep)
-        dr.go_to_local([0, 0, 0], sleep_time=5)
+        dr.go_to_local([0, 0, 0], 0, sleep_time=2)
         time.sleep(sleep)
         dr.land()
     except KeyboardInterrupt:
