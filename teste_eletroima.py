@@ -26,6 +26,4 @@ if __name__ == "__main__":
     eletroima = Eletroima(6)
     eletroima.on()
     sleep(5)
-    eletroima.off()
-    sleep(5)
     gpio.cleanup()
