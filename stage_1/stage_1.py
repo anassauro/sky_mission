@@ -4,7 +4,11 @@ import math
 import dronekit
 from pymavlink import mavutil
 import time
-from ..mav import MAV2
+#from ..mav import MAV2
+import sys
+sys.path.append('/home/software/sky_ws/src/sky_mission/') # Adicionando o caminho para a pasta absoluto
+
+from mav import MAV2 # Importando a função específica do arquivo 
 
 
 
