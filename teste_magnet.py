@@ -18,8 +18,7 @@ from mav import MAV2
 def main():
     rospy.init_node('mavbase2')
     dr = MAV2()
-    z = 2
-    x, y, z = 0,0,1
+    z = 1.5
 
     electromagnet = 11
     GPIO.setmode(GPIO.BOARD)
@@ -29,17 +28,15 @@ def main():
         try:
             dr.takeoff(z)
             rospy.sleep(7)
-            dr.go_to_local([x+1,y+1,z])
+            dr.go_to_local([1,1,z])
             rospy.sleep(7)
-            if (x, y, z != [0,0,1]):
-                GPIO.output(electromagnet, True)
-                for i in np.arrange(1,0.5, -0,1):
-                    dr.go_to_local(x,y,z + i)
-                    rospy.sleep(3)
-                dr.go_to_local(x-1,y-1,z+0,5)
-                rospy.sleep(5)
-            else:
-                GPIO.output(electromagnet, False)
+            GPIO.output(electromagnet, True)
+            for i in np.arrange(1.5,0.5, -0,1):
+                dr.go_to_local(1,1,z + i)
+                rospy.sleep(3)
+            dr.go_to_local(0,0,z-0,5)
+            rospy.sleep(5)
+            GPIO.output(electromagnet, False)
                 
         except KeyboardInterrupt:
             print("fim")       
