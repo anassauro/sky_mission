@@ -1,12 +1,9 @@
-# sky_mission
+# SUNGA 2 - Outdoor mission
 
-This repository holds all of the mission scripts Skyrats develops, both for internal projects and competitions. The main branch is supposed to be **empty**, as each project should have their own exclusive branches.
+Repository to add codes for the 2023 edition of "SUNGA". SUNGA is a internal project that aims at the development of team members and technology . In this edition the focus was precision, qr code detection and collecting packages on outdoor missions. The team's Software technology consisted of the use of **ROS and OpenCV**.
 
-In order to go to a different branch, or create your own, use the `git checkout` command:
-
-```
-git checkout <branch-name-here>
-```
-
-
-This repository is meant to be a submodule of [sky_ws](https://github.com/SkyRats/sky_ws "Skyrats workspace repository"), head there for a full installation guide.
+The repository is divided into:
+* `mov`: codes to test basic movements in a flying robot
+* `magnet`: codes to test the electro magnet 
+* `qr_code`: codes involving reading and identifying qr codes 
+* `final`: codes with final missions&#x20;
