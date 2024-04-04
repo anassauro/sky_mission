@@ -7,3 +7,15 @@ The repository is divided into:
 * `magnet`: codes to test the electro magnet 
 * `qr_code`: codes involving reading and identifying qr codes 
 * `final`: codes with final missions&#x20;
+
+To execute the codes, it is needed to initialize mavros besides the actual code.
+
+terminal 1:
+```bash
+roslaunch sky_sim apm.launch
+```
+
+terminal 2:
+```bash
+python3 <code>
+```
