@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from mavros_msgs.srv import SetMode, CommandBool, CommandTOL, ParamSet
+from mavros_msgs.srv import SetMode, CommandBool, CommandTOL, CommandHome, ParamSet
 from mavros_msgs.srv import CommandTOLRequest, CommandLongRequest, CommandLong, CommandBoolRequest
 from mavros_msgs.msg import State, ExtendedState, ParamValue, PositionTarget
 import time
@@ -16,12 +16,22 @@ class Communication():
 
     def __init__(self, DEBUG):
         ############ private Attributes #################
-        self.__drone = connect('127.0.0.1:14550')
+        try:
+            self.__drone = connect('localhost:14550', wait_ready=True)
+        except:
+            rospy.logerr("Could not connect with dronekit")
+        
+        rospy.loginfo("Drone Connected")
         self.__wait_time = 2
         self.DEBUG = DEBUG
         self.goal_pose = PoseStamped()
         self.drone_pose = PoseStamped() 
-
+        
+        ############# Services ##################
+        self.takeoff_srv = rospy.ServiceProxy('/mavros/cmd/takeoff', CommandTOL)
+        self.set_home_srv = rospy.ServiceProxy('/mavros/cmd/set_home', CommandHome)
+        rospy.loginfo("Services are up")
+        
         ############### Publishers ##############
         self.local_position_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size = 20)
         self.velocity_pub = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel',  TwistStamped, queue_size=5)
@@ -57,6 +67,23 @@ class Communication():
         self.drone_pose = data
 
     ############ behaviral functions #################
+    def set_home(self) -> bool:
+        request = CommandHome()
+        request.current_gps = False
+        request.yaw = 0
+        request.latitude = 0 
+        request.longitude = 0
+        request.altitude = 0
+        rospy.wait_for_service('/mavros/set_home', 15)
+        response = self.set_home_srv(request)
+        
+        if response.success:
+            rospy.loginfo("Home set!")
+        else:
+            rospy.loginfo("Home not set!")
+        
+        return response.success
+    
 
     def arm (self) -> bool:
         if self.__drone.mode.name != "GUIDED":
@@ -160,18 +187,29 @@ class Communication():
 ####### testes #########
 
 if __name__ == "__main__":
-    square_half_size = 50
+    #rospy.loginfo("start code")
+    square_half_size = 0.5
     try:
         rospy.init_node('Test_Comunication')
         drone = Communication(DEBUG = True)
+        #drone.set_home()
         drone.set_mode("GUIDED")
-        drone.arm()
-        drone.takeoff()
-        drone.go_to_local(coordenadas = [0,0,square_half_size])
-        drone.go_to_local(coordenadas = [square_half_size,0,square_half_size])
-        drone.go_to_local(coordenadas = [square_half_size,square_half_size,square_half_size])
-        drone.go_to_local(coordenadas = [0,square_half_size,square_half_size])
-        drone.go_to_local(coordenadas = [0,0,square_half_size])
+        #drone.arm()
+        rospy.sleep(5)
+        #drone.takeoff()
+        #rospy.sleep(5)
+        drone.go_to_local(coordenadas = [0,0,2*square_half_size])
+        rospy.sleep(5)
+        #drone.go_to_local(coordenadas = [2*square_half_size,0,2*square_half_size])
+        #rospy.sleep(5)
+        #drone.go_to_local(coordenadas = [square_half_size,square_half_size,2*square_half_size])
+        #rospy.sleep(5)
+        drone.go_to_local(coordenadas = [0,2*square_half_size,2*square_half_size])
+        rospy.sleep(5)
+        #drone.go_to_local(coordenadas = [0,0,2*square_half_size])
+        #rospy.sleep(5)
         drone.land()
-    except:
+        rospy.sleep(5)
+    except Exception as e:
         rospy.logerr("Deu ruim")
+        rospy.logerr(str(e))
