@@ -77,6 +77,7 @@ class Vehicle():
     
     def delivery_state_logic(self):
         # Logic for the Initial state
+        # Inclua aqui a identificação do QR Code/ArUco com sky_vision
         print(self.vehicle.commands.next)
         if(self.vehicle.commands.next == 3) and self.delivered == False:
                 GPIO.output(self.electromagnet, False)
@@ -87,7 +88,7 @@ class Vehicle():
 
 
     def precision_landing_state_logic(self):
-
+        # Inclue aqui o precision landing com sky_vision
         self.state = "Landed"
     
     def landed_state_logic(self):
