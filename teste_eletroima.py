@@ -23,5 +23,7 @@ class Eletroima():
             self.on()
 
 if __name__ == "__main__":
-    eletroima = Eletroima(11)
+    eletroima = Eletroima(3)
     eletroima.on()
+    time.sleep(10)
+    eletroima.off()
