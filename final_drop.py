@@ -11,7 +11,7 @@ def main():
     dr = MAV2()
     x, y, z = 0,0,1
 
-    electromagnet = 11
+    electromagnet = 3
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(electromagnet, GPIO.OUT)
     GPIO.output(electromagnet, True)
