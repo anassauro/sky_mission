@@ -159,7 +159,7 @@ class Mission():
         lat_min_num, lat_min_den = self.float_to_rational(lat_min)
         lat_sec_num, lat_sec_den = self.float_to_rational(lat_sec)
 
-        lon_deg_num, lon_deg_den = self.float_to_rational(lon_deg)
+        lon_deg_num, lon_deg_den = self.float_to_rational(lon_deg)  
         lon_min_num, lon_min_den = self.float_to_rational(lon_min)
         lon_sec_num, lon_sec_den = self.float_to_rational(lon_sec)
 
@@ -195,8 +195,8 @@ class MarkerDetector:
 
         if self.target_type == 'aruco':
             self.dictionary = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_1000)
-            self.parameters =  aruco.DetectorParameters()
-            self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
+            self.parameters =  aruco.DetectorParameters_create()
+            #self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
 
         elif self.target_type == 'qrcode':
             print("QR Code not implemented yet!")
@@ -233,49 +233,40 @@ class MarkerDetector:
     
     def aruco_detection(self, frame):
 
-        # Marker detection
-        markerCorners, markerIds, rejected = self.detector.detectMarkers(frame)
+        markerCorners, markerIds, rejected = aruco.detectMarkers(
+            frame, self.dictionary, parameters=self.parameters
+        )
 
-        i = 0
-        if len(markerCorners) > 0: # if detect any Arucos
-
+        if markerIds is not None and len(markerCorners) > 0:
             closest_target = []
-            closest_dist = 100000 # 1000 m (arbitrary large value)
+            closest_dist = float('inf')
 
-            for corners in markerCorners: # For each Aruco
-
-                marker_points = corners[0] # Vector with 4 points (x, y) for the corners
-
-                # Draw points in image
-                # final_image = self.draw_marker(frame, marker_points)
+            for i, corners in enumerate(markerCorners):
+                marker_points = corners[0]
                 final_image = frame
 
-                # Pose estimation
-                pose = self.pose_estimation(marker_points, self.marker_size, self.np_camera_matrix, self.np_dist_coeff)
+                try:
+                    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(
+                        [marker_points], self.marker_size, self.np_camera_matrix, self.np_dist_coeff
+                    )
 
-                rvec, tvec = pose
+                    x = round(tvec[0][0][0], 2)
+                    y = round(tvec[0][0][1], 2)
+                    z = round(tvec[0][0][2], 2)
 
-                # 3D pose estimation vector
-                x = round(tvec[0][0], 2)
-                y = round(tvec[1][0], 2)
-                z = round(tvec[2][0], 2)
+                    x_avg = np.mean(marker_points[:, 0])
+                    y_avg = np.mean(marker_points[:, 1])
 
-                x_sum = marker_points[0][0] + marker_points[1][0] + marker_points[2][0] + marker_points[3][0]
-                y_sum = marker_points[0][1] + marker_points[1][1] + marker_points[2][1] + marker_points[3][1]
+                    x_ang = (x_avg - self.horizontal_res * 0.5) * self.horizontal_fov / self.horizontal_res
+                    y_ang = (y_avg - self.vertical_res * 0.5) * self.vertical_fov / self.vertical_res
 
-                x_avg = x_sum / 4
-                y_avg = y_sum / 4
+                    payload = markerIds[i][0]
 
-                x_ang = (x_avg - self.horizontal_res*0.5)*self.horizontal_fov/self.horizontal_res
-                y_ang = (y_avg - self.vertical_res*0.5)*self.vertical_fov/self.vertical_res
-
-                payload = markerIds[i][0]
-                i += 1
-                
-                # Check for the closest target
-                if z < closest_dist:
-                    closest_dist = z
-                    closest_target = [x, y, z, x_ang, y_ang, payload, final_image]
+                    if z < closest_dist:
+                        closest_dist = z
+                        closest_target = [x, y, z, x_ang, y_ang, payload, final_image]
+                except Exception as e:
+                    print(f"Error in pose estimation: {e}")
             
             return closest_target
         return None
