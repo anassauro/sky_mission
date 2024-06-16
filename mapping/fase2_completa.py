@@ -126,7 +126,7 @@ class Mission():
         self.cam_frame = self.capture.read()[1]
         # self.cam_frame = cv2.resize(self.cam_frame, (960, 540))
 
-        name = "/home/helena/26AGOSTO2023/simulation_images/image%d.jpg" % self.quantidade_fotos
+        name = "./simulation_images/image%d.jpg" % self.quantidade_fotos
         # output = "/home//Documents/tagged/image%d.jpg" % self.quantidade_fotos
         name_clean = "image%d.jpg" % self.quantidade_fotos
         latitude = message.lat  
@@ -406,17 +406,16 @@ if __name__ == '__main__':
 
     # camera = [camera_matrix, dist_coeff, res, fov]
 
-        # Target size in cm
-    marker_size = 50
+    camera_matrix= [[629.60088304,  0.0,         649.96450783],
+ [  0.0,         628.99975883, 323.37037351],
+ [  0.0,           0.0,           1.0        ]]
+    dist_coeff = [[-0.08654266,  0.00064634, -0.01367921,  0.00537603,  0.00417901]]
 
-    # Camera infos
-    camera_matrix = [[467.74270306499267, 0.0, 320.5],
-                    [0.0, 467.74270306499267, 240.5],
-                    [0.0, 0.0, 1.0]]
+    # Target size in cm
+    marker_size = 35
 
-    dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
-    res = (640, 480) # Camera resolution in pixels
-    fov = (1.2, 1.1) # Camera FOV
+    res = (1280, 720) # Camera resolution in pixels
+    fov = (1,58717, 1.03966) # Camera FOV
         
     camera = [camera_matrix, dist_coeff, res, fov]
     vehicle = Vehicle()
