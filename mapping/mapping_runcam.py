@@ -27,7 +27,7 @@ class Mapping():
         self.rate = rospy.Rate(0.769)
         self.global_pose = NavSatFix()
         self.capture = cv2.VideoCapture(0)  # Initialize camera
-        self.global_position_sub = rospy.Subscriber('/mavros/global_position/global', NavSatFix, self.global_callback)
+        self.global_position_sub = rospy.Subscriber('/mavros/global_position/global', NavSatFix, self.global_callback, queue_size=1, buff_size=2**24)
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.image_dir = os.path.join(self.script_dir, "images")
         if not os.path.exists(self.image_dir):
