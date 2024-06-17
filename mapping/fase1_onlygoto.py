@@ -507,34 +507,35 @@ class PrecLand:
 
 if __name__ == '__main__':
 
-    
-    marker_size = 25
 
     # Camera infos
+    if SIMULATION:
+        marker_size = 25
+
     
-    camera_matrix = [[536.60468864,   0.0,         336.71838244],
+        camera_matrix = [[536.60468864,   0.0,         336.71838244],
                    [  0.0,        478.13866264, 353.24213721],
                    [  0.0,         0.0,        1.0        ]]
 
 
-    dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
-    res = (640,480) # Camera resolution in pixels
-    fov = (1.15976, 0.907) # Camera FOV
+        dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
+        res = (640,480) # Camera resolution in pixels
+        fov = (1.15976, 0.907) # Camera FOV
 
-    camera = [camera_matrix, dist_coeff, res, fov]
+        camera = [camera_matrix, dist_coeff, res, fov]
+    else:
+        camera_matrix= [[629.60088304,  0.0,         649.96450783],
+    [  0.0,         628.99975883, 323.37037351],
+    [  0.0,           0.0,           1.0        ]]
+        dist_coeff = [[-0.08654266,  0.00064634, -0.01367921,  0.00537603,  0.00417901]]
 
-#     camera_matrix= [[629.60088304,  0.0,         649.96450783],
-#  [  0.0,         628.99975883, 323.37037351],
-#  [  0.0,           0.0,           1.0        ]]
-#     dist_coeff = [[-0.08654266,  0.00064634, -0.01367921,  0.00537603,  0.00417901]]
+        # Target size in cm
+        marker_size = 35
 
-#     # Target size in cm
-#     marker_size = 35
-
-#     res = (1280, 720) # Camera resolution in pixels
-#     fov = (1,58717, 1.03966) # Camera FOV
+        res = (1280, 720) # Camera resolution in pixels
+        fov = (1,58717, 1.03966) # Camera FOV
         
-    camera = [camera_matrix, dist_coeff, res, fov]
+        camera = [camera_matrix, dist_coeff, res, fov]
     vehicle = Vehicle()
     vehicle.run()
 
