@@ -15,6 +15,7 @@ from cv2 import aruco
 from pymavlink import mavutil
 
 
+
 class Vehicle():
 
     def __init__(self):
@@ -70,6 +71,8 @@ class Vehicle():
                 if self.state == "Initial":
                     print("Go to Initial")
                     self.initial_state_logic()
+                elif self.state == "ReturnToAruco":
+                    print("Going to Aruco")
                 elif self.state == "PrecisionLanding":
                     self.precision_landing_state_logic()
                 elif self.state == "Landed":
@@ -81,6 +84,7 @@ class Vehicle():
         print(self.vehicle.commands.next)
         if(self.vehicle.commands.next < 6 and self.vehicle.commands.next > 1):
                 self.mission.save_pictures(self.vehicle.location.global_frame)
+                self.mission.image_processing()
         if self.vehicle.commands.next>=8:
             self.state = "PrecisionLanding"
 
@@ -103,6 +107,11 @@ class Vehicle():
         #     precision_landing.msg_receiver(frame)
         self.state = "Landed"
     
+    def back_to_aruco(self):
+        #LOGIC HERE
+        return True
+
+    
     def landed_state_logic(self):
         self.vehicle.mode = VehicleMode('STABILIZE')
         while self.vehicle.armed != False:
@@ -116,23 +125,23 @@ class Mission():
     def __init__(self):
         self.quantidade_fotos = 0
         self.cam_frame = None
-        self.capture = cv2.VideoCapture(2)
+        # self.capture = cv2.VideoCapture(2)
     
     def video(self):
 
         return self.capture
 
     def save_pictures(self, message):
-        self.cam_frame = self.capture.read()[1]
+        # self.cam_frame = self.capture.read()[1]
         # self.cam_frame = cv2.resize(self.cam_frame, (960, 540))
 
-        name = "./simulation_images/image%d.jpg" % self.quantidade_fotos
+        # name = "./images/image%d.jpg" % self.quantidade_fotos
         # output = "/home//Documents/tagged/image%d.jpg" % self.quantidade_fotos
         name_clean = "image%d.jpg" % self.quantidade_fotos
         latitude = message.lat  
         longitude = message.lon   
-        cv2.imwrite(name, self.cam_frame)
-        self.add_gps_metadata(name, latitude, longitude)
+        # cv2.imwrite(name, self.cam_frame)
+        # self.add_gps_metadata(name, latitude, longitude)
 
         print("Image {} at lat: {}, long: {}".format(self.quantidade_fotos, latitude, longitude))
         self.quantidade_fotos += 1
@@ -141,6 +150,10 @@ class Mission():
     def float_to_rational(self, f):
         f = Fraction(f).limit_denominator()
         return f.numerator, f.denominator
+    
+    def image_processing(self):
+        #LOGIC HERE
+        return True
 
     def add_gps_metadata(self, image_path, latitude, longitude):
         exif_dict = piexif.load(image_path)
@@ -364,7 +377,7 @@ class PrecLand:
                 self.vehicle.mode = VehicleMode('LAND')
                 while self.vehicle.mode != 'LAND':
                     print(self.vehicle.mode)
-                    time.sleep(1)
+                    time.sleep(0.1)
                 print('vehicle in LAND mode')
 
             
@@ -386,27 +399,27 @@ if __name__ == '__main__':
 
     # Camera infos
     
-    # camera_matrix = [[536.60468864,   0.0,         336.71838244],
-    #                [  0.0,        478.13866264, 353.24213721],
-    #                [  0.0,         0.0,        1.0        ]]
+    camera_matrix = [[536.60468864,   0.0,         336.71838244],
+                   [  0.0,        478.13866264, 353.24213721],
+                   [  0.0,         0.0,        1.0        ]]
 
 
-    # dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
-    # res = (640,480) # Camera resolution in pixels
-    # fov = (1.15976, 0.907) # Camera FOV
+    dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
+    res = (640,480) # Camera resolution in pixels
+    fov = (1.15976, 0.907) # Camera FOV
 
-    # camera = [camera_matrix, dist_coeff, res, fov]
+    camera = [camera_matrix, dist_coeff, res, fov]
 
-    camera_matrix= [[629.60088304,  0.0,         649.96450783],
- [  0.0,         628.99975883, 323.37037351],
- [  0.0,           0.0,           1.0        ]]
-    dist_coeff = [[-0.08654266,  0.00064634, -0.01367921,  0.00537603,  0.00417901]]
+#     camera_matrix= [[629.60088304,  0.0,         649.96450783],
+#  [  0.0,         628.99975883, 323.37037351],
+#  [  0.0,           0.0,           1.0        ]]
+#     dist_coeff = [[-0.08654266,  0.00064634, -0.01367921,  0.00537603,  0.00417901]]
 
-    # Target size in cm
-    marker_size = 35
+#     # Target size in cm
+#     marker_size = 35
 
-    res = (1280, 720) # Camera resolution in pixels
-    fov = (1,58717, 1.03966) # Camera FOV
+#     res = (1280, 720) # Camera resolution in pixels
+#     fov = (1,58717, 1.03966) # Camera FOV
         
     camera = [camera_matrix, dist_coeff, res, fov]
     vehicle = Vehicle()
