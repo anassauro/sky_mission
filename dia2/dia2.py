@@ -14,8 +14,8 @@ import argparse
 import numpy as np
 from cv2 import aruco
 from pymavlink import mavutil
-from simple_pid import PID
-
+#from simple_pid import PID
+import RPi.GPIO as GPIO
 
 global capture
 global SIMULATION
@@ -23,9 +23,11 @@ global TESTING
 global DELIVERED
 DELIVERED = False
 TESTING = True
-SIMULATION = True
-capture = cv2.VideoCapture(2)
-
+SIMULATION = False
+capture = cv2.VideoCapture(0)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(11, GPIO.OUT)
+GPIO.output(11, True)
 class Vehicle():
 
     def __init__(self):
@@ -40,9 +42,8 @@ class Vehicle():
         self.vehicle_mode = ''
         self.started = False
         self.returning = False
-        
         parser = argparse.ArgumentParser()
-        parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
+        parser.add_argument('--connect', default = '/dev/ttyACM0')
         args = parser.parse_args()
         self.id = 3
 
@@ -97,7 +98,8 @@ class Vehicle():
     def initial_state_logic(self):
         # Logic for the Initial state
         print(self.vehicle.commands.next)
-        if(self.vehicle.commands.next < 3 and self.vehicle.commands.next > 1):
+        #self.state = "PrecisionLanding"
+        if(self.vehicle.commands.next < 4 and self.vehicle.commands.next > 1):
                 if not TESTING:
                     self.id = self.mission.image_processing()
         if self.vehicle.commands.next>=4:
@@ -493,12 +495,12 @@ class PrecLand:
 
             frame = cap.read()[1]
             # print(self.vehicle.location.global_relative_frame.alt)
-            if self.vehicle.location.global_relative_frame.alt <=1.0:
+            #if self.vehicle.location.global_relative_frame.alt <=1.0:
                 # print("Landed")
-                self.vehicle.mode = VehicleMode('GUIDED')
+                #self.vehicle.mode = VehicleMode('GUIDED')
 
                 #GPIO.output(self.electromagnet, False)
-                DELIVERED = True
+             #   DELIVERED = True
                 # self.landed = True
                 # self.instance.state = "Landed"
             # if self.vehicle.location.global_relative_frame.alt <=0.5 and DELIVERED:
@@ -526,7 +528,7 @@ class PrecLand:
             if closest_target is not None:
                 x, y, z, x_ang, y_ang, payload, draw_img = closest_target
                 print("Altitude",self.vehicle.location.global_relative_frame.alt)
-                if self.vehicle.location.global_relative_frame.alt >1.5:
+                if self.vehicle.location.global_relative_frame.alt >0.9:
 
                     
                     if payload == self.id:
@@ -545,13 +547,14 @@ class PrecLand:
                         
                         # AQUI
                         self.send_land_message(x_ang, y_ang, dist)
+                        self.send_land_message(x_ang,y_ang,dist)
                     
                     else:
                         print("Wrong marker")
                 else:
                     print("Try to hover")
-                    self.vehicle.mode = VehicleMode('GUIDED')
-                    #GPIO.output(self.electromagnet, False)
+                    self.vehicle.mode = VehicleMode('LOITER')
+                    GPIO.output(11, False)
                     DELIVERED = True
 
 
@@ -648,7 +651,7 @@ if __name__ == '__main__':
         marker_size = 35
 
         res = (1280, 720) # Camera resolution in pixels
-        fov = (1,58717, 1.03966) # Camera FOV
+        fov = (1.58717, 1.03966) # Camera FOV
         
         camera = [camera_matrix, dist_coeff, res, fov]
     vehicle = Vehicle()
