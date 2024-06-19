@@ -1,5 +1,5 @@
 import dronekit
-from dronekit import connect, VehicleMode, Command, LocationGlobalRelative
+from dronekit import connect, VehicleMode, LocationGlobalRelative, LocationGlobal
 import math
 import cv2
 from cv_bridge import CvBridge 
@@ -8,60 +8,59 @@ import time
 import rospy
 from fractions import Fraction
 from PIL import Image as img
-import piexif
 from datetime import datetime
 import argparse
 import numpy as np
 from cv2 import aruco
 from pymavlink import mavutil
+from simple_pid import PID
 
-
-
-global UPPER_BLUE
-global LOWER_BLUE 
-
-global UPPER_ORANGE 
-global LOWER_ORANGE 
-
-global ERODE_KERNEL
-global DILATE_KERNEL
-
-global MIN_AREA
-
-MIN_AREA = 75*75*1.5
-
-ERODE_KERNEL = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
-DILATE_KERNEL = cv2.getStructuringElement(cv2.MORPH_RECT, (75, 75))
-
-UPPER_BLUE = (140,255,255) 
-LOWER_BLUE = (100,150,0)
-
-UPPER_ORANGE = (225, 250, 255)
-LOWER_ORANGE = (0, 100, 45)
 
 global capture
 global SIMULATION
 
-RASP = False
+global state
+global end_circuit
+
+global ID_LAND
+global ID_LESTE
+global ID_NORTE
+global ID_OESTE
+global ID_SUL
+end_circuit = False
+end_follow = False
+
+# Mude para False caso seja teste na Rasp
+SIMULATION = True
+
+# Mude aqui os IDs
+
+ID_NORTE = 27
+ID_SUL = 14
+ID_LESTE = 63
+ID_OESTE = 48
+
+ID_END_FIRST = 600
+ID_FOLLOWME = 700
+
+RASP = True
 if RASP:
     import RPi.GPIO as GPIO
 
+state = "Circuit"
 
-SIMULATION = False
-capture = cv2.VideoCapture(4)
+
+
+if not SIMULATION:
+    capture = cv2.VideoCapture(0)
 
 class Vehicle():
 
-    def __init__(self):
-        global RASP
+    def __init__(self,target_type, target_size, camera_info):
 
-        if RASP:
-            self.electromagnet = 11
-            GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(self.electromagnet, GPIO.OUT)
-
-        self.mission = Mission()
-        self.state = "Initial"
+        self.target_type = target_type
+        self.target_size = target_size
+        self.camera_info = camera_info
         self.current_wp = 0
         self.current_lat = 0
         self.current_lon = 0
@@ -70,17 +69,21 @@ class Vehicle():
         self.vehicle_mode = ''
         self.started = False
         self.returning = False
-        self.capture = capture
-
-        self.md = MarkerDetector('aruco', marker_size, camera)
         
         parser = argparse.ArgumentParser()
-        parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
+
+        if SIMULATION:
+            parser.add_argument('--connect', default = 'tcp:127.0.0.1:5763')
+        else:
+            parser.add_argument('--connect', default = '/dev/ttyACM0')
+
         args = parser.parse_args()
 
         #-- Connect to the vehicle
         print('Connecting...')
         self.vehicle = connect(args.connect)
+        self.mission = Mission(self,self.vehicle,self.target_type, self.target_size, self.camera_info)
+        
         self.commands = self.vehicle.commands
         #-- Check vehicle status
         print(f"Mode: {self.vehicle.mode.name}")
@@ -111,7 +114,6 @@ class Vehicle():
             self.current_wp = message.seq
 
     def run(self):
-            
             # Check current state and execute corresponding logic
             while True:
                 print("Look for aruco...")
@@ -126,84 +128,54 @@ class Vehicle():
                     if RASP:
                         GPIO.output(self.electromagnet, GPIO.LOW)
 
-                
-
+            """
+            if state == "Circuit":
+                # print("Going to First Aruco")
+                self.circuit_logic()
+            elif state == "Centralize":
+                self.centralize_state_logic()
+            elif state == "PrecisionLanding":
+                self.precision_landing_state_logic()
+            elif state == "Landed":
+                self.landed_state_logic()
                 """
-                if self.state == "Initial":
-                    print("Go to Initial")
-                    self.initial_state_logic()
-                elif self.state == "ReturnToAruco":
-                    print("Going to Aruco")
-                    self.back_to_aruco()
-                elif self.state == "PrecisionLanding":
-                    self.precision_landing_state_logic()
-                elif self.state == "Landed":
-                    self.landed_state_logic()
-
-                """
-            # Add more states and transitions as needed
+        # Add more states and transitions as needed
     
-    def initial_state_logic(self):
-        # Logic for the Initial state
-        print(self.vehicle.commands.next)
-        if(self.vehicle.commands.next < 100 and self.vehicle.commands.next > 1):
-                
-                frame = self.capture.read()[1]
-                #frame = cv2.resize(frame, (960, 540))
+    def circuit_logic(self):
 
-                self.mission.save_pictures(self.vehicle.location.global_frame, frame)
-                self.mission.image_processing(self.vehicle.location.global_frame, frame)
-        if self.vehicle.commands.next>=100:
-            self.state = "ReturnToAruco"
+        if not SIMULATION:
+           
+           while not end_follow:
+               cap = capture
+               frame = cap.read()[1]
+               self.mission.aruco_circuit(frame)
+        else:
+           rospy.spin()
+    
+    def centralize_state_logic(self):
 
+        if not SIMULATION:
+           
+           while not end_circuit:
+               cap = capture
+               frame = cap.read()[1]
+               self.mission.centralize_follow(frame)
+               #self.mission.aruco_circuit(frame)
+        else:
+           rospy.spin()
 
     def precision_landing_state_logic(self):
-        # # Logic for the Precision Landing state
-        # if self.vehicle.mode != 'LAND':
-        #     self.vehicle.mode = VehicleMode('LAND')
-        #     while self.vehicle.mode != 'LAND':
-        #         time.sleep(1)
-        #     print('vehicle in LAND mode')
 
-        precision_landing = PrecLand(self, self.vehicle, 'aruco', marker_size, camera)
+        
         if SIMULATION:
             rospy.spin()
-        # while self.vehicle.location.global_frame.alt >= 0.2:
-        #     ret, frame = self.mission.video().read()
+        else:
+            cap = capture
+            frame = cap.read()[1]
+            self.mission.precision_landing(frame)
 
-        #     if not ret:
-        #         continue
-        #     precision_landing.msg_receiver(frame)
         self.state = "Landed"
-    
-    def back_to_aruco(self):
-        time.sleep(1)
-        lat = -35.3631719
-        lon = 149.1652103
-        altitude = 10
-        self.count = self.count + 1
-        if self.returning == False and self.vehicle_mode != 'GUIDED':
-            # self.commands.clear()
-            self.vehicle.mode = VehicleMode("GUIDED")
-            lat = -35.3631719
-            lon = 149.1652103
-            altitude = 10
-            # cmd = Command(0,0,0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
-            # 0, 0, 0, 0, 0, 0,
-            # lat, lon, altitude)
-            point = LocationGlobalRelative(lat,lon,altitude)
-            self.vehicle.simple_goto(point)
-            # self.commands.add(cmd)
-            # self.commands.upload()
-            # self.vehicle.flush()
-            self.returning = True
 
-        dist = self.distance_to_current_waypoint(lat,lon,altitude)
-        if dist < 1 and self.count > 5:
-            print("----REACHED WAYPOINT----", dist)
-            self.state = "PrecisionLanding"
-        
-        #LOGIC HERE
 
     def landed_state_logic(self):
         self.vehicle.mode = VehicleMode('STABILIZE')
@@ -212,166 +184,264 @@ class Vehicle():
             print("ent")
         print("End of mission")
         self.vehicle.close()
+    
+                
+class Mission():
 
-    def distance_to_current_waypoint(self,lat,lon,altitude):
-        """
-        Gets distance in metres to the current waypoint.
-        It returns None for the first waypoint (Home location).
-        """
-        # nextwaypoint=self.vehicle.commands.next
-        # if nextwaypoint ==0:
-        #     return None
-        # missionitem=self.commands[nextwaypoint-1] #commands are zero indexed
-        # lat=missionitem.x
-        # lon=missionitem.y
-        # alt=missionitem.z
-
-        targetWaypointLocation=LocationGlobalRelative(lat,lon,altitude)
+    def __init__(self, instance, vehicle, target_type, target_size, camera_info):
         
-        distancetopoint = self.get_distance_metres(self.vehicle.location.global_frame, targetWaypointLocation)
-        return distancetopoint
+        self.cam_frame = None
+        self.vehicle = vehicle
+        self.instance = instance
+        self.landed=False
+        self.last_goto_time = None
+        self.last_dist = 1
+        self.last_target = None
+        self.marker_detector = MarkerDetector(target_type, target_size, camera_info)
+        
 
+        if SIMULATION:
+
+            rospy.init_node('drone_node', anonymous=False)
+
+            # Bridge ros-opencv
+            self.bridge_object = CvBridge()
+
+            # Post detection image publisher
+            self.newimg_pub = rospy.Publisher('camera/colour/image_new', Image, queue_size=1)
+            self.cam = Image()
+
+            if self.landed == False:
+                try:
+                    print("Criando subscriber...")
+                    self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver, queue_size=1,buff_size=2**24)
+                except:
+                    print('Erro ao criar subscriber!')
+
+        self.teste = []
+    
+    def goto(self,dNorth, dEast):
+
+        currentLocation=self.vehicle.location.global_relative_frame
+        targetLocation=self.get_location_metres(currentLocation, dNorth, dEast)
+        targetDistance=self.get_distance_metres(currentLocation, targetLocation)
+        self.vehicle.simple_goto(targetLocation)
+
+        while self.vehicle.mode.name=="GUIDED": #Stop action if we are no longer in guided mode.
+            remainingDistance=self.get_distance_metres(self.vehicle.location.global_frame, targetLocation)
+            print ("Distance to target: ", remainingDistance)
+
+            ## AQUI NÃO FOI MUITO TESTADO, ISSO SERVE PARA DAR BREAK CASO O DRONE FIQUE PARADO NO MESMO LUGAR...
+            if abs(remainingDistance -self.last_dist) < 0.05:
+                break
+
+            self.last_dist = remainingDistance
+            if remainingDistance<=targetDistance*0.1: #Just below target, in case of undershoot.
+                print ("Reached target")
+                break
+            time.sleep(2)
+
+    def get_location_metres(self,original_location, dNorth, dEast):
+        """
+        Returns a LocationGlobal object containing the latitude/longitude `dNorth` and `dEast` metres from the 
+        specified `original_location`. The returned LocationGlobal has the same `alt` value
+        as `original_location`.
+
+        The function is useful when you want to move the vehicle around specifying locations relative to 
+        the current vehicle position.
+
+        The algorithm is relatively accurate over small distances (10m within 1km) except close to the poles.
+
+        For more information see:
+        http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
+        """
+        earth_radius = 6378137.0 #Radius of "spherical" earth
+        #Coordinate offsets in radians
+        dLat = dNorth/earth_radius
+        dLon = dEast/(earth_radius*math.cos(math.pi*original_location.lat/180))
+
+        #New position in decimal degrees
+        newlat = original_location.lat + (dLat * 180/math.pi)
+        newlon = original_location.lon + (dLon * 180/math.pi)
+        if type(original_location) is LocationGlobal:
+            targetlocation=LocationGlobal(newlat, newlon,original_location.alt)
+        elif type(original_location) is LocationGlobalRelative:
+            targetlocation=LocationGlobalRelative(newlat, newlon,original_location.alt)
+        else:
+            raise Exception("Invalid Location object passed")
+            
+        return targetlocation
+    
     def get_distance_metres(self,aLocation1, aLocation2):
         """
-        Returns the ground distance in metres between two `LocationGlobal` or `LocationGlobalRelative` objects.
+        Returns the ground distance in metres between two LocationGlobal objects.
 
-        This method is an approximation, and will not be accurate over large distances and close to the
-        earth's poles. It comes from the ArduPilot test code:
+        This method is an approximation, and will not be accurate over large distances and close to the 
+        earth's poles. It comes from the ArduPilot test code: 
         https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
         """
         dlat = aLocation2.lat - aLocation1.lat
         dlong = aLocation2.lon - aLocation1.lon
         return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
-                
-class Mission():
-
-    def __init__(self):
-        global capture
-        self.quantidade_fotos = 0
-        self.cam_frame = None
-        self.capture = capture
-
-        self.md = MarkerDetector('aruco', marker_size, camera)
-        self.aruco_dict = dict()
     
-    def video(self):
+    
+    def aruco_circuit(self,frame): 
+        global state, end_circuit
 
-        return self.capture
-
-    def save_pictures(self, message, frame):
+        # closest_target = self.marker_detector.aruco_detection(frame)
+        current_time = time.time()
         
-        name = "./images/image%d.jpg" % self.quantidade_fotos
-        # output = "/home//Documents/tagged/image%d.jpg" % self.quantidade_fotos
-        # name_clean = "image%d.jpg" % self.quantidade_fotos
-        latitude = message.lat  
-        longitude = message.lon   
-        cv2.imwrite(name, frame)
-        self.add_gps_metadata(name, latitude, longitude)
+        if self.last_goto_time is None or current_time - self.last_goto_time >= 5:
+            if self.last_target == None:
+                closest_target = self.marker_detector.aruco_detection(frame)
+            else:
+                closest_target = None
+        else:
+            closest_target = None
 
-        print("Image {} at lat: {}, long: {}".format(self.quantidade_fotos, latitude, longitude))
-        self.quantidade_fotos += 1
-        time.sleep(2)
+        if closest_target is not None:
+            x, y, z, x_ang, y_ang, payload, draw_img = closest_target
+            # print("Altitude",self.vehicle.location.global_relative_frame.alt)
+            print(f'MARKER DETECTED: ID = {payload}')
+            if payload == ID_LESTE:
+                self.goto(0,2.3)
+                self.last_goto_time = time.time()
+            elif payload == ID_NORTE:
+                self.goto(2.3,0)
+                self.last_goto_time = time.time()
+            elif payload == ID_OESTE:
+                self.goto(0,-2.3)
+                self.last_goto_time = time.time()
+            elif payload == ID_SUL:
+                self.goto(-2.3,0)
+                self.last_goto_time = time.time()
+            elif payload == ID_END_FIRST:
+                self.last_goto_time = time.time()
+                end_circuit = True
+                if SIMULATION:
+                    state = "Centralize"
+            else:
+                print("Wrong marker")
+
+        return True
     
-    def float_to_rational(self, f):
-        f = Fraction(f).limit_denominator()
-        return f.numerator, f.denominator
-    
-    def is_square(self, rect, tol = 0.5 ) -> bool:    
-        print(rect)
-        aux = rect[2]/rect[3]
-        print(aux)
-        if(aux >= (1 - tol) and aux <= (1 + tol)):
-            print("is square")
-            return True
-        return False
-    
-    def image_processing(self, message, frame, RESIZE_FACTOR = 1):
-        #LOGIC HERE
-
-        img = frame
-        height, width, _ = frame.shape
-
-        #FILTERING BY COLOR
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        mask_blue = cv2.inRange(img, LOWER_BLUE, UPPER_BLUE)
-        mask_orange = cv2.inRange(img, LOWER_ORANGE, UPPER_ORANGE)
-
-        masks = cv2.bitwise_or(mask_blue, mask_orange)
-
-        #APPLYING MASKS, REMOVE IF USING HOUGH TRANSFORM
-        masks = cv2.erode(masks, ERODE_KERNEL)
-        masks = cv2.dilate(masks, DILATE_KERNEL)
-
-        cnts, _ = cv2.findContours(masks, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        #FILTER BY MIN AREA
-        filtered_boxes = [cv2.boundingRect(cnt) for cnt in cnts if cv2.contourArea(cnt) > MIN_AREA and self.is_square(cv2.boundingRect(cnt))]
+    def msg_receiver(self,message): 
+        global state
+            
+        cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
+        frame = cam
         
-        #SEARCH FOR ARUCO
-        for box in filtered_boxes:
-            print("searching for aruco in picture...")
-            aruco = self.md.aruco_detection(frame[box[1]: box[1] + box[3], box[0]: box[0] + box[2]])
-            cv2.imshow("ARUCO", frame[box[1]: box[1] + box[3], box[0]: box[0] + box[2]])
-            cv2.waitKey(1)
-                
-            if aruco:
-                distance = int(math.dist((height/2, width/2), (box[0] + box[2]/2, box[1] + box[3]/2)))
-                print("FOUND ARUCO FUCK YEAH ID", aruco[5])
-                if aruco[5] in self.aruco_dict:
-                    print("ARUCO ID ALREADY IN. CHECKING IF IT HAS BETTER CORDS")
-                    if self.aruco_dict.get(aruco[5])[2] > distance:
-                        print("BETTER CENTRALIZED, SWAPING CORDS")
-                        latitude = message.lat  
-                        longitude = message.lon
-                        self.aruco_dict.update({aruco[5] : [latitude, longitude, distance]})
-                else:
-                    latitude = message.lat  
-                    longitude = message.lon
-                    self.aruco_dict.update({aruco[5] : [latitude, longitude, distance]})
+        if state == "PrecisionLanding":
 
+            self.precision_landing(frame)
 
-    def add_gps_metadata(self, image_path, latitude, longitude):
-        exif_dict = piexif.load(image_path)
+        elif state == "Circuit":
 
-        lat_deg = abs(latitude)
-        lat_min, lat_sec = divmod(lat_deg * 3600, 60)
-        lat_deg, lat_min = divmod(lat_min, 60)
-        lat_ref = 'N' if latitude >= 0 else 'S'
-
-        lon_deg = abs(longitude)
-        lon_min, lon_sec = divmod(lon_deg * 3600, 60)
-        lon_deg, lon_min = divmod(lon_min, 60)
-        lon_ref = 'E' if longitude >= 0 else 'W'
-
-        lat_deg_num, lat_deg_den = self.float_to_rational(lat_deg)
-        lat_min_num, lat_min_den = self.float_to_rational(lat_min)
-        lat_sec_num, lat_sec_den = self.float_to_rational(lat_sec)
-
-        lon_deg_num, lon_deg_den = self.float_to_rational(lon_deg)  
-        lon_min_num, lon_min_den = self.float_to_rational(lon_min)
-        lon_sec_num, lon_sec_den = self.float_to_rational(lon_sec)
-
-        gps_ifd = {
-            piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
-            piexif.GPSIFD.GPSLatitudeRef: lat_ref,
-            piexif.GPSIFD.GPSLatitude: ((lat_deg_num, lat_deg_den), (lat_min_num, lat_min_den), (lat_sec_num, lat_sec_den)),
-            piexif.GPSIFD.GPSLongitudeRef: lon_ref,
-            piexif.GPSIFD.GPSLongitude: ((lon_deg_num, lon_deg_den), (lon_min_num, lon_min_den), (lon_sec_num, lon_sec_den)),
-        }
+            self.aruco_circuit(frame)
         
-        exif_dict['GPS'] = gps_ifd
+        elif state == "Centralize":
 
-        timestamp = datetime.now()
-        timestamp_str = timestamp.strftime("%Y:%m:%d %H:%M:%S")
+            self.centralize_follow(frame)
+    
+    
+    def send_land_message(self, x_ang,y_ang,dist_m,time=0):
+        msg = self.vehicle.message_factory.landing_target_encode(
+            time,
+            0,
+            mavutil.mavlink.MAV_FRAME_BODY_NED,
+            x_ang,
+            y_ang,
+            dist_m,
+            0,
+            0,
+        )
+        self.vehicle.send_mavlink(msg)
+        print("Mensagem enviada")
 
-        exif_dict['0th'][piexif.ImageIFD.DateTime] = timestamp_str
-        exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = timestamp_str
-        exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = timestamp_str
+    def centralize_follow(self,frame):
 
-        exif_bytes = piexif.dump(exif_dict)
-        piexif.insert(exif_bytes, image_path)
+        aruco = self.marker_detector.aruco_detection(frame)
+        if aruco:
+            corners, draw_img = aruco
+            self.visual_servoing_control(corners,frame)
+    
+    def move_drone_with_velocity(self,vx, vy, vz):
+        """
+        Send SET_POSITION_TARGET_LOCAL_NED command to request the vehicle fly to a specified
+        location in the North, East, Down frame.
+        """
+        msg = self.vehicle.message_factory.set_position_target_local_ned_encode(
+            0,       # time_boot_ms (not used)
+            0, 0,    # target system, target component
+            mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED, # frame
+            0b110111000111, # type_mask (only positions enabled)
+            0, 0, 0,
+            vx, vy,vz, # x, y, z velocity in m/s  (not used)
+            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
+        # send command to vehicle
+        self.vehicle.send_mavlink(msg)
+    
+    
+    def visual_servoing_control(self,corners, frame):     
 
-        print("GPS metadata added to the image.")
+        # Initialize PID controllers for lateral and forward control
+        pid_x = PID(Kp=0.005, Ki=0.005, Kd=0.25, setpoint=0)
+        pid_y = PID(Kp=0.005, Ki=0.005, Kd=0.25, setpoint=0)
+
+        if corners:
+            # Assuming the first detected marker's center is our target
+            marker_center = corners[0][0].mean(axis=0)
+
+            # Calculate the error between the marker center and the image center
+            image_center = np.array([frame.shape[1] / 2, frame.shape[0] / 2])
+            error = marker_center - image_center
+            print(error)
+            # Calculate the desired velocity commands (lateral and forward) using PID controllers
+            vx = +pid_x(error[1])  # Drone moves in the opposite direction to align with the marker's center (left/right)
+            vy = -pid_y(error[0])
+
+            # Visual servoing parameters (adjust as needed)
+            vz = 0  # Desired vertical velocity (m/s)
+            duration = 0.5 # Duration of each movement command (in seconds)
+
+            # Move the drone with velocity commands
+            self.move_drone_with_velocity(vx, vy, vz)
+
+
+    def precision_landing(self,frame):
+
+
+        if self.landed:
+                self.vehicle.mode = VehicleMode('GUIDED')
+                self.vehicle.armed=False
+                # time.sleep(15)
+                print("End")
+                # self.vehicle.mode = VehicleMode('LAND')
+
+            # Look for the closest target in the frame
+        closest_target = self.marker_detector.aruco_detection(frame)
+
+        if closest_target is not None:
+            x, y, z, x_ang, y_ang, payload, draw_img = closest_target
+            print("Altitude",self.vehicle.location.global_relative_frame.alt)
+
+            if self.vehicle.mode != 'LAND':
+                self.vehicle.mode = VehicleMode('LAND')
+                while self.vehicle.mode != 'LAND':
+                    print(self.vehicle.mode)
+                    # time.sleep(0.1)
+                print('vehicle in LAND mode')
+
+
+            # times = time.time()*1e6
+            dist = float(z)/100
+            
+            # AQUI
+            self.send_land_message(x_ang, y_ang, dist)
+
+            print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
+
 
 
 class MarkerDetector:
@@ -424,6 +494,34 @@ class MarkerDetector:
         markerCorners, markerIds, rejected = aruco.detectMarkers(
             frame, self.dictionary, parameters=self.parameters
         )
+
+        # Follow me
+
+        if end_circuit:
+            i = 0
+            if markerIds is not None and len(markerCorners) > 0: # if detect any Arucos
+
+                closest_target = []
+                closest_dist = 100000 # 1000 m (arbitrary large value)
+
+                for corners in markerCorners: # For each Aruco
+
+                    marker_points = corners[0] # Vector with 4 points (x, y) for the corners
+                    # Draw points in image
+                    final_image = self.draw_marker(frame, marker_points)
+                    #cv2.imshow('detected', final_image)
+                    payload = markerIds[i][0]
+                    i += 1
+
+                    # Se for diferente do Aruco que queremos seguir
+                    
+                    if payload != ID_FOLLOWME:
+                        return None
+                
+                return markerCorners, final_image
+            return None
+
+        # PLND e circuito inicial
 
         if markerIds is not None and len(markerCorners) > 0:
             closest_target = []
@@ -478,150 +576,18 @@ class MarkerDetector:
 
         return final
 
-
-class PrecLand:
-
-    def __init__(self, instance,vehicle, target_type, target_size, camera_info):
-
-        global capture
-        # Drone
-        self.vehicle = vehicle
-        self.instance = instance
-        self.landed=False
-        
-        # Marker detector object
-        self.detector = MarkerDetector(target_type, target_size, camera_info)
-
-        if not SIMULATION:
-            self.cam = capture
-            self.main_loop(capture)
-        else:
-            # ROS node
-            rospy.init_node('drone_node', anonymous=False)
-
-            # Bridge ros-opencv
-            self.bridge_object = CvBridge()
-
-            # Post detection image publisher
-            self.newimg_pub = rospy.Publisher('camera/colour/image_new', Image, queue_size=10)
-            self.cam = Image()
-
-            if self.landed == False:
-                try:
-                    print("Criando subscriber...")
-                    self.subscriber = rospy.Subscriber('/webcam/image_raw', Image, self.msg_receiver)
-                except:
-                    print('Erro ao criar subscriber!')
-
-        self.teste = []
-
-    def send_land_message(self, x_ang,y_ang,dist_m,time=0):
-        msg = self.vehicle.message_factory.landing_target_encode(
-            time,
-            0,
-            mavutil.mavlink.MAV_FRAME_BODY_NED,
-            x_ang,
-            y_ang,
-            dist_m,
-            0,
-            0,
-        )
-        self.vehicle.send_mavlink(msg)
-        print("Mensagem enviada")
-    
-
-    def main_loop(self,cap):
-
-        while self.instance.state != "Landed":
-
-            frame = cap.read()[1]
-            # print(self.vehicle.location.global_relative_frame.alt)
-            if self.vehicle.location.global_relative_frame.alt <=0.2:
-                # print("Landed")
-                self.landed = True
-                self.instance.state = "Landed"
-            
-            if self.landed:
-                self.vehicle.mode = VehicleMode('GUIDED')
-                self.vehicle.armed=False
-                time.sleep(15)
-                print("End")
-                # self.vehicle.mode = VehicleMode('LAND')
-
-            # Look for the closest target in the frame
-            closest_target = self.detector.aruco_detection(frame)
-
-            if closest_target is not None:
-
-                if self.vehicle.mode != 'LAND':
-                    self.vehicle.mode = VehicleMode('LAND')
-                    while self.vehicle.mode != 'LAND':
-                        print(self.vehicle.mode)
-                        time.sleep(0.1)
-                    print('vehicle in LAND mode')
-
-                
-                x, y, z, x_ang, y_ang, payload, draw_img = closest_target
-
-                # times = time.time()*1e6
-                dist = float(z)/100
-
-                # AQUI
-                self.send_land_message(x_ang, y_ang, dist)
-
-                print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
-            
-    #-- Callback
-    def msg_receiver(self, message):
-
-         # Bridge de ROS para CV
-        cam = self.bridge_object.imgmsg_to_cv2(message,"bgr8")
-        frame = cam
-        # print(self.vehicle.location.global_relative_frame.alt)
-        if self.vehicle.location.global_relative_frame.alt <=0.2:
-            # print("Landed")
-            self.landed = True
-            self.instance.state = "Landed"
-        
-        if self.landed:
-            self.vehicle.mode = VehicleMode('GUIDED')
-            self.vehicle.armed=False
-            time.sleep(15)
-            print("End")
-            # self.vehicle.mode = VehicleMode('LAND')
-
-        # Look for the closest target in the frame
-        closest_target = self.detector.aruco_detection(frame)
-
-        if closest_target is not None:
-
-            if self.vehicle.mode != 'LAND':
-                self.vehicle.mode = VehicleMode('LAND')
-                while self.vehicle.mode != 'LAND':
-                    print(self.vehicle.mode)
-                    time.sleep(0.1)
-                print('vehicle in LAND mode')
-
-            
-            x, y, z, x_ang, y_ang, payload, draw_img = closest_target
-
-            # times = time.time()*1e6
-            dist = float(z)/100
-
-            # AQUI
-            self.send_land_message(x_ang, y_ang, dist)
-
-            print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
-
 if __name__ == '__main__':
+
 
     # Camera infos
     if SIMULATION:
         marker_size = 25
 
+    
         camera_matrix = [[536.60468864,   0.0,         336.71838244],
                    [  0.0,        478.13866264, 353.24213721],
                    [  0.0,         0.0,        1.0        ]]
+
 
         dist_coeff = [0.0, 0.0, 0.0, 0.0, 0] # Camera distortion matrix
         res = (640,480) # Camera resolution in pixels
@@ -638,9 +604,9 @@ if __name__ == '__main__':
         marker_size = 35
 
         res = (1280, 720) # Camera resolution in pixels
-        fov = (1,58717, 1.03966) # Camera FOV
+        fov = (1.58717, 1.03966) # Camera FOV
         
         camera = [camera_matrix, dist_coeff, res, fov]
-    vehicle = Vehicle()
+    vehicle = Vehicle('aruco', marker_size, camera)
     vehicle.run()
 
