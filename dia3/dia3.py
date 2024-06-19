@@ -45,6 +45,8 @@ ID_FOLLOWME = 700
 
 state = "Circuit"
 
+
+
 if not SIMULATION:
     capture = cv2.VideoCapture(0)
 
@@ -139,7 +141,8 @@ class Vehicle():
            while not end_circuit:
                cap = capture
                frame = cap.read()[1]
-               self.mission.aruco_circuit(frame)
+               self.mission.centralize_follow(frame)
+               #self.mission.aruco_circuit(frame)
         else:
            rospy.spin()
 
