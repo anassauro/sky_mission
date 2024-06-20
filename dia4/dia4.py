@@ -129,6 +129,7 @@ class Vehicle():
             self.current_wp = message.seq
 
     def run(self):
+            global state
   
             # Check current state and execute corresponding logic
             while True:
@@ -137,12 +138,13 @@ class Vehicle():
                 elif state == "PrecisionLanding":
                     self.precision_landing_state_logic()
                 elif state == "PrecisionDelivery":
-                    self.precision_landing_state_logic()
+                    self.precision_package_delivery_logic()
                 elif state == "Landed":
                     self.landed_state_logic()
             # Add more states and transitions as needed
     
     def searching_logic(self):
+        global state
 
         if not SIMULATION:
            
@@ -154,12 +156,13 @@ class Vehicle():
            rospy.spin()
 
         if FIRST_TASK and found_aruco:
-            self.state = "PrecisionLanding"
+            state = "PrecisionLanding"
         elif not FIRST_TASK and found_aruco:
-            self.state = "PrecisionDelivery"
+            state = "PrecisionDelivery"
 
     
     def precision_package_delivery_logic(self):
+        global state
 
         if SIMULATION:
             rospy.spin()
@@ -169,10 +172,10 @@ class Vehicle():
                 frame = cap.read()[1]
                 self.mission.precision_delivery(frame)
 
-        self.state = "Landed"
+        state = "Landed"
 
     def precision_landing_state_logic(self):
-
+        global state
         
         if SIMULATION:
             rospy.spin()
@@ -183,7 +186,7 @@ class Vehicle():
                 frame = cap.read()[1]
                 self.mission.precision_landing(frame)
 
-        self.state = "Landed"
+        state = "Landed"
 
 
     def landed_state_logic(self):
