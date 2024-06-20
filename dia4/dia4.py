@@ -129,7 +129,7 @@ class Vehicle():
             self.current_wp = message.seq
 
     def run(self):
-            self.vehicle.mode = 'GUIDED'
+  
             # Check current state and execute corresponding logic
             while True:
                 if state == "Searching":
