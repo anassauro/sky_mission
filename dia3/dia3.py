@@ -111,6 +111,7 @@ class Vehicle():
 
     def run(self):
             # Check current state and execute corresponding logic
+            self.vehicle.mode = 'GUIDED'
             while True:
                 if state == "Circuit":
                     # print("Going to First Aruco")
