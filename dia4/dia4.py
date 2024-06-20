@@ -47,7 +47,7 @@ ID_TAKEOFF = 3
 
 # Mude aqui dependendo da parte da tarefa sendo feita
 
-FIRST_TASK = True
+FIRST_TASK = False
 DELIVERED = False
 
 # Se FIRST_TASK for True, ele tentará pousar no ArUco ID_OBJECT. Caso contrário, ele vai procurar o ArUco de Takeoff e soltar um pacote nele.
@@ -388,9 +388,6 @@ class Mission():
         global electromagnet, DELIVERED, state, landed
 
         if DELIVERED:
-            self.vehicle.mode = VehicleMode('GUIDED')
-            self.goto(0.3,0)
-            time.sleep(5)
 
             while not landed:
                 if self.vehicle.mode != 'LAND':
@@ -403,42 +400,45 @@ class Mission():
                     state = "Landed"
 
             # Look for the closest target in the frame
-        closest_target = self.marker_detector.aruco_detection(frame)
+
+        else:
+            closest_target = self.marker_detector.aruco_detection(frame)
 
 
-        if closest_target is not None:
-                x, y, z, x_ang, y_ang, payload, draw_img = closest_target
-                print("Altitude",self.vehicle.location.global_relative_frame.alt)
+            if closest_target is not None:
+                    x, y, z, x_ang, y_ang, payload, draw_img = closest_target
+                    print("Altitude",self.vehicle.location.global_relative_frame.alt)
 
-                # Change delivery altitude as you wish :)
+                    # Change delivery altitude as you wish :)
 
-                if self.vehicle.location.global_relative_frame.alt > 0.7:
-
-
-                    if self.vehicle.mode != 'LAND':
-                        self.vehicle.mode = VehicleMode('LAND')
-                        while self.vehicle.mode != 'LAND':
-                            print(self.vehicle.mode)
-                        print('---Vehicle in LAND mode---')
-
-                    dist = float(z)/100
-                    
-                    # Mandando duas vezes a mensagem para inicializar com certeza o PLND
-                    self.send_land_message(x_ang, y_ang, dist)
-                    self.send_land_message(x_ang,y_ang,dist)
-
-                else:
-                    print("---Delivering package---")
-                    # Change to Loiter so RC can assume too
-                    if self.vehicle.mode == 'LAND':
-                        self.vehicle.mode = VehicleMode('GUIDED')
-                        DELIVERED = True
-                    if not SIMULATION:
-                        GPIO.output(electromagnet, False)
-                        DELIVERED = True
+                    if self.vehicle.location.global_relative_frame.alt > 0.7:
 
 
-                print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
+                        if self.vehicle.mode != 'LAND':
+                            self.vehicle.mode = VehicleMode('LAND')
+                            while self.vehicle.mode != 'LAND':
+                                print(self.vehicle.mode)
+                            print('---Vehicle in LAND mode---')
+
+                        dist = float(z)/100
+                        
+                        # Mandando duas vezes a mensagem para inicializar com certeza o PLND
+                        self.send_land_message(x_ang, y_ang, dist)
+                        self.send_land_message(x_ang,y_ang,dist)
+
+                    else:
+                        print("---Delivering package---")
+                        # Change to Loiter so RC can assume too
+                        if self.vehicle.mode == 'LAND':
+                            self.vehicle.mode = VehicleMode('GUIDED')
+                            DELIVERED = True
+                            time.sleep(15)
+                        if not SIMULATION:
+                            GPIO.output(electromagnet, False)
+                            DELIVERED = True
+
+
+                    print(f'MARKER POSITION: x = {x} | y = {y} | z = {z} | x_ang = {round(x_ang, 2)} | y_ang = {round(y_ang, 2)} | ID = {payload}')
 
 class MarkerDetector:
 
