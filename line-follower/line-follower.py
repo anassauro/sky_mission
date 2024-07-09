@@ -22,7 +22,7 @@ class image_converter:
         self.pub_error = rospy.Publisher('error', Int16, queue_size=10)
         self.pub_angle = rospy.Publisher('angle', Int16, queue_size=10)
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber('/webcam/image_raw', Image, self.callback)
+        self.image_sub = rospy.Subscriber('/webcam_down/image_raw_down', Image, self.callback)
 
         self.setpoint_pub_ = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
 
