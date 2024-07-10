@@ -1,4 +1,3 @@
--- This LUA script takes two zones into account, as well as the antennas (still to be implemented)
 local interesting_data = {}
 local lat = 1
 local lng = 2
@@ -17,25 +16,37 @@ gcs:send_text(6, "Started..")
 function write_to_file()
 
     if not file then
-      error("Could not open file")
+        error("Could not open file")
     end
     local time_week = tostring(gps:time_week(0))
     local time = tostring(gps:time_week_ms(0))
-  
+
     -- write data
     -- separate with commas and add a carriage return
     file:write(time_week .. "," .. time .. "," .. tostring(millis()) .. ", " .. tostring(interesting_data[1]) .. "," .. tostring(interesting_data[2]) .. "," .. tostring(interesting_data[3]) .. "," .. tostring(interesting_data[4]) .. "," .. tostring(interesting_data[5]) .. "\n")
-  
+
     -- make sure file is up to date
     file:flush()
-  
+
 end
 
 function getLocation()
     local current_pos = ahrs:get_position()
     local home = ahrs:get_home()
-    local voltage = battery:voltage(0)
-    local current = battery:current(0)
+    local voltage = 0
+    local current = 0
+
+    if battery.voltage then
+        voltage = battery:voltage(0)
+    else
+        gcs:send_text(6, "Battery voltage function not available")
+    end
+
+    if battery.current_amps then
+        current = battery:current_amps(0)
+    else
+        gcs:send_text(6, "Battery current function not available")
+    end
     
     if current_pos and home then  
         local point = createPoint(
@@ -59,9 +70,6 @@ function getLocation()
     return default
 end
 
--- Verify if the location is inside the polygon
--- Define a global variable to keep track of the consecutive times the point is outside the fence
-
 local outsideCount = 0
 
 function update()
@@ -81,15 +89,11 @@ function update()
     return update, 1000 -- reschedules the loop
 end
 
--- make a file
--- note that this appends to the same file each time, you will end up with a very big file
--- you may want to make a new file each time using a unique name
 file = io.open(file_name, "a")
 if not file then
     error("Could not make file")
 end
 
--- write the CSV header
 file:write('GPS (week), GPS(week ms), Time(ms), Lat(deg), Lng(deg), Alt(deg), Voltage(V), Current(A)\n')
 file:flush()
 
