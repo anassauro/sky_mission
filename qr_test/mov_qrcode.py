@@ -15,7 +15,7 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mav import MAV2
 
 
-class QRCodeReader():
+class QRCodeDetect():
     def __init__(self) -> None:
         self.qrcode = String()
         self.qrcode_list = []
