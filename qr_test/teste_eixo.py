@@ -11,13 +11,13 @@ from mavros_msgs.srv import SetMode, CommandBool, CommandTOL, ParamSet
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
-from mav import MAV2
+from mav import Communication
 
 
 
 def main():
     rospy.init_node('mavbase2')
-    dr = MAV2()
+    dr = Communication()
     z = 1
     sleep = 5
     try:
