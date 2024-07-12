@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 10 16:38:19 2024
-
-@author: ENZO
-"""
 
 #!/usr/bin/python3
 
