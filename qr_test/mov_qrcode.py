@@ -61,6 +61,12 @@ def main():
                 if qr.qrcode[0] == "S":
                     dr.go_to_local([x-1,y,z])
                     rospy.sleep(5)
+                if qr.qrcode[0] == "N":
+                    dr.go_to_local([x+1,y,z])
+                    rospy.sleep(5)
+                if qr.qrcode[0] == "W":
+                    dr.go_to_local([x,y+1,z])
+                    rospy.sleep(5)
                 else:
                     print("Sem Movimento")         
             qr.found_qr = False
