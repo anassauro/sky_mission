@@ -1,0 +1,3 @@
+[submodule "sky_utils"]
+	path = sky_utils
+	url = https://github.com/SkyRats/sky_utils.git
