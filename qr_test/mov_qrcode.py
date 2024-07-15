@@ -15,18 +15,18 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from mav import MAV2
 
 
-class QRCodeDetect():
+class codeDetector():
     def __init__(self) -> None:
-        self.qrcode = String()
-        self.qrcode_list = []
+        self.code = String()
+        self.code_list = []
         #rospy.init_node('sky_vision_barcode_analyzer', anonymous=False)
-        rospy.Subscriber('/sky_vision/down_cam/qrcode_decode', String, self.callback)
+        rospy.Subscriber('/sky_vision/code/read', String, self.callback)
         self.found_qr = False
 
     def callback(self, message):
-        self.qrcode = message.data
-        if self.qrcode not in self.qrcode_list:
-            self.qrcode_list.append(self.qrcode)
+        self.code = message.data
+        if self.code not in self.code_list:
+            self.code_list.append(self.code)
         self.found_qr = True    
 
 
@@ -35,7 +35,7 @@ class QRCodeDetect():
 def main():
     rospy.init_node('mavbase2')
     dr = MAV2()
-    qr = QRCodeDetect()
+    qr = codeDetector()
     dr.change_auto_speed(1)
     z = 1,5
     x, y, z = 1, 1, 0     #QR Code distance from takeoff
@@ -54,17 +54,17 @@ def main():
         else:
             print("QR Code found!")
             print("QR Code list:", qr.qrcode_list)
-            if qr.qrcode[-1] == 1:
-                if qr.qrcode[0] == "E":
+            if qr.code[-1] == 1:
+                if qr.code[0] == "E":
                     dr.go_to_local([x,y-1,z])
                     rospy.sleep(5)
-                if qr.qrcode[0] == "S":
+                if qr.code[0] == "S":
                     dr.go_to_local([x-1,y,z])
                     rospy.sleep(5)
-                if qr.qrcode[0] == "N":
+                if qr.code[0] == "N":
                     dr.go_to_local([x+1,y,z])
                     rospy.sleep(5)
-                if qr.qrcode[0] == "W":
+                if qr.code[0] == "W":
                     dr.go_to_local([x,y+1,z])
                     rospy.sleep(5)
                 else:
