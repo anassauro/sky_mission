@@ -12,7 +12,7 @@ from mavros_msgs.srv import SetMode, CommandBool, CommandTOL, ParamSet
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
-from mav import MAV2
+from communication import Mav
 
 
 class codeDetector():
@@ -33,8 +33,8 @@ class codeDetector():
 
 
 def main():
-    rospy.init_node('mavbase2')
-    dr = MAV2()
+    rospy.init_node('mav')
+    dr = Mav()
     qr = codeDetector()
     dr.change_auto_speed(1)
     z = 1,5
