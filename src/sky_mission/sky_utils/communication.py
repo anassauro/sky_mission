@@ -220,13 +220,13 @@ def test():
         rospy.sleep(6)
 
     mav.goto(x=2)
-    mav.wait_position(min_distance=0.15)
+    mav.wait_position(0.15)
     
     mav.rotate(np.pi)
     mav.wait_angle(np.pi/9)
 
     mav.goto(x=0, y=0, z=1, yaw=0)
-    mav.wait_position(min_distance=0.15)
+    mav.wait_position(0.15)
 
     rospy.loginfo("Trying to land...")
     if not mav.land():
