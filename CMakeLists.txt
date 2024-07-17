@@ -1,0 +1,37 @@
+cmake_minimum_required(VERSION 3.0.2)
+
+# EDIT: name of package
+project(sky_mission)
+
+# EDIT: list all <build_depend> and <depend> package dependencies
+find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs
+  mavros
+  roscpp
+  rospy
+  std_msgs
+  sensor_msgs
+  mavros_msgs
+  roslaunch
+)
+
+catkin_python_setup()
+
+catkin_package()
+
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+)
+
+# EDIT: list all executable python and shell scripts for installation
+install(PROGRAMS
+   scripts/*
+   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+## Mark other files for installation (e.g. launch and bag files, etc.)
+# install(FILES
+#   # myfile1
+#   # myfile2
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+# )
