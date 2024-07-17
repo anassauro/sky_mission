@@ -12,7 +12,7 @@ from mavros_msgs.srv import SetMode, CommandBool, CommandTOL, ParamSet
 from std_msgs.msg import String, Header
 from mavros_msgs.msg import PositionTarget
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
-from communication import Mav
+from sky_mission.sky_utils.communication import Mav
 
 
 class codeDetector():
