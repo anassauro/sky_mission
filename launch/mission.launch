@@ -1,3 +1,0 @@
-<launch>
-    <node name="sky_mission" pkg="sky_mission" type="mission.py" output="screen"/>
-</launch>
